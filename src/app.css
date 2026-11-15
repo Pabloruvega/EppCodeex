@@ -80,10 +80,32 @@ h1 {
 }
 
 .marca {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
 	font-size: 1.15rem;
 	font-weight: 700;
+	line-height: 1.2;
 	color: var(--texto);
 	text-decoration: none;
+}
+
+.marca img {
+	flex: none;
+}
+
+.marca small {
+	display: block;
+	font-size: 0.8rem;
+	font-weight: 400;
+	color: var(--tenue);
+}
+
+/* El isotipo es tinta negra sobre transparente: en modo oscuro se invierte a blanco */
+@media (prefers-color-scheme: dark) {
+	.marca img {
+		filter: invert(1);
+	}
 }
 
 .sidebar nav {
