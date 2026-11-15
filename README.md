@@ -114,18 +114,14 @@ npm run db:generate -- --name descripcion_del_cambio
 npm run db:migrate
 ```
 
-Para que **cada deploy aplique las migraciones pendientes** (incluidas las ramas de preview), en Vercel → **Settings → Build and Deployment → Build Command** poné:
+**Cada deploy aplica las migraciones pendientes** (incluidas las ramas de preview): `vercel.json` define como comando de build `npm run db:migrate && npm run build`. Si la migración falla, el deploy no sale.
 
-```sh
-npm run db:migrate && npm run build
-```
-
-Si preferís migrar a mano, corré `npm run db:migrate` con el `.env` apuntando a producción antes de desplegar.
+Las variables que inyecta Neon son *sensitive*: `vercel env pull` no trae su valor, así que para migrar a mano hay que copiar el connection string desde la consola de Neon al `.env`.
 
 ## Desplegar
 
 1. Verificá que en **Settings → Build and Deployment → Node.js Version** esté 22.x o superior.
-2. Push a la rama principal → Vercel compila y despliega. No hace falta `vercel.json`.
+2. Push a la rama principal → Vercel aplica las migraciones, compila y despliega.
 3. Entrá a `https://tu-proyecto.vercel.app/login`, cargá los artículos y listo.
 
 ## Decisiones
