@@ -1,4 +1,4 @@
-import { asc, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { asc, desc, eq, isNotNull, lte, sql } from 'drizzle-orm';
 import type { Db } from './db/index.js';
 import { articulos, movimientos } from './db/schema.js';
 
@@ -15,6 +15,15 @@ export function listarArticulos(db: Db) {
 		.leftJoin(movimientos, eq(movimientos.articuloId, articulos.id))
 		.groupBy(articulos.id)
 		.orderBy(asc(articulos.nombre));
+}
+
+/** Cuántos artículos están en el mínimo o por debajo: el contador de la barra lateral. */
+export async function contarAReponer(db: Db) {
+	const [fila] = await db
+		.select({ total: sql<number>`count(*)::int` })
+		.from(articulos)
+		.where(lte(articulos.stock, articulos.stockMinimo));
+	return fila?.total ?? 0;
 }
 
 const columnasMovimiento = {

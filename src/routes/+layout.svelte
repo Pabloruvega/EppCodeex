@@ -8,7 +8,6 @@
 	let { data, children }: LayoutProps = $props();
 
 	const enlaces = $derived([
-		...(data.admin ? [{ href: '/nueva-entrega', texto: 'Nueva entrega' }] : []),
 		{ href: '/', texto: 'Stock' },
 		{ href: '/entregas', texto: 'Entregas por empleado' },
 		...(data.admin ? [{ href: '/movimientos', texto: 'Movimientos' }] : [])
@@ -49,9 +48,21 @@
 			<img src={isotipo} alt="" width="44" height="39" />
 			<span>Stock de EPP<small>Codeex Construcciones</small></span>
 		</a>
+		{#if data.admin}
+			<a
+				class="boton nueva-entrega"
+				href="/nueva-entrega"
+				aria-current={page.url.pathname === '/nueva-entrega' ? 'page' : undefined}>+ Nueva entrega</a
+			>
+		{/if}
 		<nav aria-label="Secciones">
 			{#each enlaces as e (e.href)}
-				<a href={e.href} aria-current={page.url.pathname === e.href ? 'page' : undefined}>{e.texto}</a>
+				<a href={e.href} aria-current={page.url.pathname === e.href ? 'page' : undefined}>
+					{e.texto}
+					{#if e.href === '/' && data.aReponer > 0}
+						<span class="cuenta" title="Artículos a reponer">{data.aReponer}<span class="oculto"> a reponer</span></span>
+					{/if}
+				</a>
 			{/each}
 		</nav>
 		<div class="sesion">

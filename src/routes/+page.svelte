@@ -49,7 +49,11 @@
 							<td data-label="Stock" class="num">{a.stock}</td>
 							<td data-label="Mínimo" class="num">{a.stockMinimo}</td>
 						{/if}
-						<td data-label="Estado"><span class={reponer ? 'etiqueta reponer' : 'etiqueta ok'}>{reponer ? 'Reponer' : 'OK'}</span></td>
+						<td data-label="Estado">
+							{#if a.stock === 0}<span class="etiqueta sin-stock">Sin stock</span>
+							{:else if reponer}<span class="etiqueta reponer">Reponer</span>
+							{:else}<span class="etiqueta ok">OK</span>{/if}
+						</td>
 						{#if data.admin}
 							<td class="acciones">
 								<form id="editar-{a.id}" method="POST" action="?/editarArticulo" use:enhance={sinReset}>

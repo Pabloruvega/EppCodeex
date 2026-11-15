@@ -114,10 +114,44 @@ h1 {
 }
 
 .sidebar nav a {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 0.5rem;
 	padding: 0.5rem 0.75rem;
 	border-radius: 6px;
 	color: var(--texto);
 	text-decoration: none;
+}
+
+/* Contador de artículos a reponer, junto a "Stock" */
+.cuenta {
+	padding: 0 0.45rem;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--alerta);
+	background: var(--alerta-fondo);
+}
+
+/* Enlace con aspecto de botón principal */
+.boton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 2.5rem;
+	padding: 0.4rem 1rem;
+	border-radius: 6px;
+	background: var(--acento);
+	color: var(--acento-texto);
+	font-weight: 600;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.boton:hover {
+	filter: brightness(1.08);
 }
 
 .sidebar nav a:hover {
@@ -158,8 +192,13 @@ h1 {
 		border-right: 0;
 		border-bottom: 1px solid var(--borde);
 	}
-	.sidebar nav {
+	/* En el celular la entrega es la acción de todos los días: fila propia, de lado a lado */
+	.nueva-entrega {
 		order: 3;
+		width: 100%;
+	}
+	.sidebar nav {
+		order: 4;
 		width: 100%;
 		display: flex;
 		overflow-x: auto;
@@ -253,9 +292,18 @@ button {
 	white-space: nowrap;
 }
 
+/* El acento queda para la acción principal; el resto es neutro */
 button.secundario {
+	background: var(--superficie);
+	border-color: var(--borde-control);
+	color: var(--texto);
+}
+
+button.discreto {
 	background: transparent;
+	border-color: transparent;
 	color: var(--acento);
+	padding-inline: 0.6rem;
 }
 
 button.peligro {
@@ -378,6 +426,12 @@ th {
 	font-variant-numeric: tabular-nums;
 }
 
+/* Cifras de ancho fijo: las cantidades no bailan al editarlas */
+input[type='number'],
+.etiqueta {
+	font-variant-numeric: tabular-nums;
+}
+
 td.num input {
 	width: 6rem;
 	text-align: right;
@@ -391,11 +445,28 @@ td.num input {
 }
 
 .etiqueta {
-	display: inline-block;
-	padding: 0.1rem 0.5rem;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.1rem 0.6rem 0.1rem 0.5rem;
 	border-radius: 999px;
 	font-size: 0.85rem;
 	font-weight: 600;
+	white-space: nowrap;
+}
+
+.etiqueta::before {
+	content: '';
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+/* Stock en cero: el único estado con relleno pleno */
+.etiqueta.sin-stock {
+	color: var(--alerta-texto);
+	background: var(--alerta);
 }
 
 .etiqueta.ok,
