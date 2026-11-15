@@ -12,6 +12,30 @@
 		{ href: '/entregas', texto: 'Entregas por empleado' },
 		...(data.admin ? [{ href: '/movimientos', texto: 'Movimientos' }] : [])
 	]);
+
+	// Chrome y Edge avisan cuando la app se puede instalar; guardamos el aviso para ofrecer el botón.
+	// En iPhone no existe: se instala desde Compartir → "Agregar a inicio".
+	type AvisoInstalacion = Event & { prompt(): Promise<unknown> };
+	let instalacion = $state<AvisoInstalacion | null>(null);
+
+	$effect(() => {
+		const alOfrecer = (e: Event) => {
+			e.preventDefault();
+			instalacion = e as AvisoInstalacion;
+		};
+		const alInstalar = () => (instalacion = null);
+		window.addEventListener('beforeinstallprompt', alOfrecer);
+		window.addEventListener('appinstalled', alInstalar);
+		return () => {
+			window.removeEventListener('beforeinstallprompt', alOfrecer);
+			window.removeEventListener('appinstalled', alInstalar);
+		};
+	});
+
+	async function instalar() {
+		await instalacion?.prompt();
+		instalacion = null;
+	}
 </script>
 
 <svelte:head>
@@ -27,6 +51,9 @@
 			{/each}
 		</nav>
 		<div class="sesion">
+			{#if instalacion}
+				<button onclick={instalar}>Instalar app</button>
+			{/if}
 			{#if data.admin}
 				<form method="POST" action="/logout">
 					<button class="secundario">Cerrar sesión</button>

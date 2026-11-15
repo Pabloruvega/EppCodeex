@@ -5,12 +5,15 @@
 	--texto: #1b1f24;
 	--tenue: #5c6670;
 	--borde: #d8dde3;
+	--borde-control: #868e96; /* contorno de campos: 3:1 sobre superficie */
 	--acento: #1f6feb;
 	--acento-texto: #ffffff;
+	--acento-sobre-suave: #1757c2; /* texto sobre el tinte de acento al 15 % */
 	--ok: #1a7f37;
 	--ok-fondo: #dafbe1;
 	--alerta: #b42318;
 	--alerta-fondo: #fde8e6;
+	--alerta-texto: #ffffff; /* texto sobre alerta pleno */
 	--radio: 8px;
 	font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 	line-height: 1.45;
@@ -23,12 +26,15 @@
 		--texto: #e6e9ed;
 		--tenue: #9aa4ae;
 		--borde: #2d343c;
+		--borde-control: #6b7480;
 		--acento: #4c8dff;
 		--acento-texto: #0b0d10;
+		--acento-sobre-suave: #8ab4ff;
 		--ok: #4ac26b;
 		--ok-fondo: #12301b;
 		--alerta: #ff7b72;
 		--alerta-fondo: #3a1714;
+		--alerta-texto: #0b0d10;
 	}
 }
 
@@ -97,13 +103,15 @@ h1 {
 }
 
 .sidebar nav a[aria-current='page'] {
-	color: var(--acento);
+	color: var(--acento-sobre-suave);
 	background: color-mix(in srgb, var(--acento) 15%, transparent);
 	font-weight: 600;
 }
 
 .sesion {
 	margin-top: auto;
+	display: grid;
+	gap: 0.5rem;
 }
 
 .sesion button {
@@ -139,6 +147,8 @@ h1 {
 	}
 	.sesion {
 		margin-top: 0;
+		display: flex;
+		align-items: center;
 	}
 }
 
@@ -207,7 +217,7 @@ input,
 select {
 	width: 100%;
 	padding: 0.4rem 0.6rem;
-	border: 1px solid var(--borde);
+	border: 1px solid var(--borde-control);
 	background: var(--superficie);
 	color: var(--texto);
 }
@@ -229,7 +239,7 @@ button.secundario {
 button.peligro {
 	background: var(--alerta);
 	border-color: var(--alerta);
-	color: #fff;
+	color: var(--alerta-texto);
 }
 
 .campos-entrega {
@@ -304,9 +314,17 @@ button.peligro {
 
 .titulo-con-accion {
 	display: flex;
+	flex-wrap: wrap;
 	justify-content: space-between;
 	align-items: baseline;
-	gap: 1rem;
+	gap: 0 1rem;
+}
+
+.exportar {
+	display: flex;
+	gap: 0.75rem;
+	margin: 0 0 0.75rem;
+	color: var(--tenue);
 }
 
 /* Tablas */
@@ -370,7 +388,7 @@ td.num input {
 }
 
 .etiqueta.entrega {
-	color: var(--acento);
+	color: var(--acento-sobre-suave);
 	background: color-mix(in srgb, var(--acento) 15%, transparent);
 }
 

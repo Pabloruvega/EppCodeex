@@ -8,6 +8,8 @@ import { load as loadEntregas } from '../src/routes/entregas/+page.server.js';
 import { actions as accionesMovimientos, load as loadMovimientos } from '../src/routes/movimientos/+page.server.js';
 import { actions as accionesEntrega, load as loadNuevaEntrega } from '../src/routes/nueva-entrega/+page.server.js';
 import { GET as exportarCsv } from '../src/routes/movimientos.csv/+server.js';
+import { GET as exportarPdf } from '../src/routes/movimientos.pdf/+server.js';
+import { GET as exportarXlsx } from '../src/routes/movimientos.xlsx/+server.js';
 import { crearDbTest } from './db-test.js';
 
 const { db, vaciar } = await crearDbTest();
@@ -84,8 +86,12 @@ describe('acceso sin sesión', () => {
 		expect(isRedirect(e) && e.location).toBe('/login');
 	});
 
-	it('el CSV responde 404 sin sesión', async () => {
-		await esperarProhibido(Promise.resolve().then(() => exportarCsv(evento(false))), 404);
+	it.each([
+		['CSV', exportarCsv],
+		['Excel', exportarXlsx],
+		['PDF', exportarPdf]
+	])('la exportación a %s responde 404 sin sesión', async (_, exportar) => {
+		await esperarProhibido(Promise.resolve().then(() => exportar(evento(false))), 404);
 	});
 });
 
@@ -104,6 +110,11 @@ describe('acceso con sesión de admin', () => {
 
 		const csv = await (await exportarCsv(evento(true))).text();
 		expect(csv).toContain('Ingreso;Botines;2');
+
+		const xlsx = await exportarXlsx(evento(true));
+		expect(xlsx.headers.get('Content-Disposition')).toContain('.xlsx');
+		const pdf = await exportarPdf(evento(true));
+		expect(new TextDecoder().decode((await pdf.arrayBuffer()).slice(0, 5))).toBe('%PDF-');
 	});
 
 	it('una entrega sin stock suficiente devuelve 400 con el mensaje', async () => {

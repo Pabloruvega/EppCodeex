@@ -14,7 +14,12 @@
 <main>
 	<div class="titulo-con-accion">
 		<h1>Movimientos</h1>
-		<a href="/movimientos.csv" download>Exportar CSV</a>
+		<p class="exportar">
+			Exportar:
+			<a href="/movimientos.xlsx" download>Excel</a>
+			<a href="/movimientos.pdf" download>PDF</a>
+			<a href="/movimientos.csv" download>CSV</a>
+		</p>
 	</div>
 	<Aviso resultado={form} />
 	{#if data.movimientos.length === 0}

@@ -3,7 +3,7 @@
 Control de stock de equipos de protección personal, con una barra lateral para moverse entre secciones:
 
 - **Público (sin login):** stock actual y entregas por empleado (solo lectura).
-- **Admin (contraseña única):** alta, edición y borrado de artículos, ingresos, entregas (de uno o varios artículos a la vez), lista de movimientos y exportación a CSV.
+- **Admin (contraseña única):** alta, edición y borrado de artículos, ingresos, entregas (de uno o varios artículos a la vez), lista de movimientos y exportación a Excel, PDF y CSV.
 
 Stack: SvelteKit 3 + TypeScript, `@sveltejs/adapter-vercel`, Neon Postgres, Drizzle ORM, Vitest.
 
@@ -26,7 +26,8 @@ src/
     auth.ts                     cookie firmada, comparación en tiempo constante, requireAdmin()
     limite-login.ts             5 intentos por IP cada 15 minutos (en la base)
     acciones.ts                 ejecuta una action y traduce los ErrorUsuario a fail(400)
-    validacion.ts, csv.ts
+    validacion.ts
+    excel.ts, pdf.ts, csv.ts    exportaciones de movimientos
   routes/
     +layout.server.ts / .svelte barra lateral (las secciones de admin solo aparecen con sesión)
     +page.server.ts / .svelte   stock: público; con sesión, edición, ingresos y altas
@@ -35,7 +36,7 @@ src/
     movimientos/                ingresos y entregas, con borrado (solo admin)
     login/                      formulario de login
     logout/+server.ts           POST: borra la cookie
-    movimientos.csv/+server.ts  exportación (solo admin; 404 si no)
+    movimientos.{xlsx,pdf,csv}/ exportaciones (solo admin; 404 si no)
 drizzle/                        migraciones SQL generadas
 tests/                          Vitest (PGlite: Postgres en memoria)
 ```
@@ -64,8 +65,8 @@ npm run check     # tipos (svelte-check)
 Los tests no necesitan Neon: usan [PGlite](https://pglite.dev) (Postgres compilado a WASM, en memoria) y aplican las mismas migraciones de `drizzle/`. Cubren:
 
 - `tests/stock.spec.ts`: entrega, ingreso, borrado con reversión, stock insuficiente, concurrencia y borrado en cascada.
-- `tests/acceso.spec.ts`: sin sesión, toda action responde 403 sin modificar la base, los `load` públicos no envían ingresos, las páginas de admin redirigen al login y el CSV da 404. Además, validez de la cookie.
-- `tests/validacion.spec.ts`: parseo de formularios, fechas y escapado del CSV.
+- `tests/acceso.spec.ts`: sin sesión, toda action responde 403 sin modificar la base, los `load` públicos no envían ingresos, las páginas de admin redirigen al login y las exportaciones dan 404. Además, validez de la cookie.
+- `tests/validacion.spec.ts`: parseo de formularios, fechas y exportaciones (Excel, PDF y escapado del CSV).
 
 ### Build local en Windows
 
@@ -140,6 +141,7 @@ Si preferís migrar a mano, corré `npm run db:migrate` con el `.env` apuntando 
 - **Límite de login en la base**, porque las instancias serverless no comparten memoria.
 - **No indexable:** `<meta name="robots" content="noindex">`, cabecera `X-Robots-Tag` y `robots.txt` con `Disallow: /`.
 - **Sin JS también funciona.** Las confirmaciones son `<details>` con el botón adentro (no `confirm()`), el autocompletado de empleados es un `<datalist>` y el buscador es un formulario GET. Con JS, `use:enhance` evita recargar la página y el buscador filtra mientras escribís. La única excepción: sin JS, la entrega admite un solo artículo (agregar renglones necesita JS).
+- **Instalable como app (PWA), sin service worker.** Alcanza con `static/manifest.webmanifest` y los íconos: Chrome y Edge ya no exigen service worker para instalar, y la app no sirve sin conexión porque todo sale de la base. Así tampoco se cachean páginas con datos de admin. El botón "Instalar app" aparece cuando el navegador lo permite; en iPhone se instala desde Compartir → "Agregar a inicio".
 - **CSS propio**, sin Tailwind. Son pocas páginas; con variables CSS y `prefers-color-scheme` alcanza para el modo oscuro, sin sumar dependencias ni un paso de build.
 - **CSV con `;` y BOM**, para que Excel en español lo abra con las columnas y los acentos bien. Los textos que empiezan con `=`, `+`, `-` o `@` se prefijan con `'` para evitar inyección de fórmulas.
 
@@ -148,6 +150,8 @@ Si preferís migrar a mano, corré `npm run db:migrate` con el `.env` apuntando 
 | Paquete | Por qué |
 | --- | --- |
 | `drizzle-orm`, `@neondatabase/serverless` | ORM y driver de Neon (stack pedido). |
+| `exceljs` | Exportar los movimientos a `.xlsx` con fechas y números reales. |
+| `pdfkit` (+ `@types/pdfkit` dev) | Exportar los movimientos a PDF. Usa las fuentes estándar de PDF (Latin-1): un emoji en las observaciones sale como `?`. |
 | `drizzle-kit` (dev) | Generar y aplicar migraciones. |
 | `@electric-sql/pglite` (dev) | Postgres real en memoria para testear la lógica de stock sin Neon. |
 | `@types/node` (dev) | Tipos de `node:crypto` (firma HMAC y `timingSafeEqual`). |

@@ -1,7 +1,10 @@
+import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
 import { formatearFecha, hoyISO } from '#lib/fechas.js';
 import { movimientosACsv } from '#lib/server/csv.js';
 import { ErrorUsuario } from '#lib/server/errores.js';
+import { movimientosAXlsx } from '#lib/server/excel.js';
+import { movimientosAPdf } from '#lib/server/pdf.js';
 import { leerArticuloNuevo, leerEntrega, normalizarEmpleado } from '#lib/server/validacion.js';
 
 const formulario = (campos: Record<string, string>) => {
@@ -58,7 +61,7 @@ describe('validación', () => {
 	});
 });
 
-describe('fechas y CSV', () => {
+describe('fechas y exportaciones', () => {
 	it('formatea dd/mm/aaaa', () => {
 		expect(formatearFecha('2026-03-05')).toBe('05/03/2026');
 	});
@@ -74,5 +77,28 @@ describe('fechas y CSV', () => {
 		]);
 		expect(csv.startsWith('﻿Fecha;Tipo;Artículo;Cantidad;Empleado;Observaciones\r\n')).toBe(true);
 		expect(csv).toContain('12/11/2026;Entrega;Guantes;2;1 - Ana;"\'=HYPERLINK(""x""); talle L"');
+	});
+
+	const movimiento = {
+		id: 1,
+		tipo: 'entrega' as const,
+		fecha: '2026-11-12',
+		articulo: 'Guantes',
+		cantidad: 2,
+		empleado: '1 - Ana',
+		observaciones: '=1+1 😀'
+	};
+
+	it('el Excel guarda fechas como fechas, cantidades como números y textos sin fórmulas', async () => {
+		const libro = new ExcelJS.Workbook();
+		await libro.xlsx.load((await movimientosAXlsx([movimiento])).buffer);
+		const hoja = libro.getWorksheet('Movimientos')!;
+		expect(hoja.getRow(1).values).toEqual([undefined, 'Fecha', 'Tipo', 'Artículo', 'Cantidad', 'Empleado', 'Observaciones']);
+		expect(hoja.getRow(2).values).toEqual([undefined, new Date('2026-11-12T00:00:00Z'), 'Entrega', 'Guantes', 2, '1 - Ana', '=1+1 😀']);
+	});
+
+	it('el PDF se genera aunque haya caracteres fuera de Latin-1', async () => {
+		const pdf = await movimientosAPdf([movimiento], '2026-11-15');
+		expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe('%PDF-');
 	});
 });
