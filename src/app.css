@@ -744,13 +744,13 @@ details.empleado {
 	margin-block: 0.5rem;
 }
 
-/* Ficha de empleado: legajo, nombre y última entrega arriba; totales por artículo debajo */
+/* Ficha de empleado: nombre y última entrega arriba; totales por artículo debajo */
 details.empleado summary {
 	display: grid;
-	grid-template-columns: auto auto minmax(0, 1fr) auto;
+	grid-template-columns: auto minmax(0, 1fr) auto;
 	grid-template-areas:
-		'flecha legajo nombre ultima'
-		'. totales totales totales';
+		'flecha nombre ultima'
+		'. totales totales';
 	align-items: center;
 	gap: 0.25rem 0.75rem;
 	color: var(--texto);
@@ -771,15 +771,6 @@ details.empleado summary::before {
 
 details.empleado[open] summary::before {
 	rotate: 90deg;
-}
-
-details.empleado .legajo {
-	grid-area: legajo;
-	min-width: 2.5rem;
-	font-size: 0.85rem;
-	font-weight: 600;
-	font-variant-numeric: tabular-nums;
-	color: var(--tenue);
 }
 
 details.empleado .nombre {
@@ -820,11 +811,11 @@ details.empleado .totales {
 /* Celular: la fecha baja a su propia línea, debajo del nombre */
 @media (max-width: 640px) {
 	details.empleado summary {
-		grid-template-columns: auto auto minmax(0, 1fr);
+		grid-template-columns: auto minmax(0, 1fr);
 		grid-template-areas:
-			'flecha legajo nombre'
-			'. ultima ultima'
-			'. totales totales';
+			'flecha nombre'
+			'. ultima'
+			'. totales';
 	}
 }
 

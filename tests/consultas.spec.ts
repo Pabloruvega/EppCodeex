@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { separarEmpleado } from '#lib/empleado.js';
 import { agruparPorEmpleado, contarAReponer, type FilaMovimiento } from '#lib/server/consultas.js';
 import { articulos } from '#lib/server/db/schema.js';
 import { crearDbTest } from './db-test.js';
@@ -26,16 +25,6 @@ describe('contarAReponer', () => {
 	});
 });
 
-describe('separarEmpleado', () => {
-	it('separa legajo y nombre', () => {
-		expect(separarEmpleado('214 - Marta Quiroga')).toEqual({ legajo: '214', nombre: 'Marta Quiroga' });
-	});
-
-	it('sin el formato esperado deja todo en el nombre', () => {
-		expect(separarEmpleado('Marta Quiroga')).toEqual({ legajo: '', nombre: 'Marta Quiroga' });
-	});
-});
-
 describe('agruparPorEmpleado', () => {
 	let id = 0;
 	const fila = (empleado: string, fecha: string, articulo: string, cantidad: number): FilaMovimiento => ({
@@ -50,17 +39,14 @@ describe('agruparPorEmpleado', () => {
 
 	// Como las devuelve listarEntregas: de la más nueva a la más vieja.
 	const grupos = agruparPorEmpleado([
-		fila('214 - Marta Quiroga', '2026-11-12', 'Guantes', 2),
-		fila('087 - Oleg Baranov', '2026-11-03', 'Botines', 1),
-		fila('214 - Marta Quiroga', '2026-10-20', 'Guantes', 6),
-		fila('214 - Marta Quiroga', '2026-10-20', 'Casco', 1)
+		fila('Oleg Baranov', '2026-11-12', 'Guantes', 2),
+		fila('Marta Quiroga', '2026-11-03', 'Botines', 1),
+		fila('Oleg Baranov', '2026-10-20', 'Guantes', 6),
+		fila('Oleg Baranov', '2026-10-20', 'Casco', 1)
 	]);
 
-	it('ordena por legajo y separa legajo y nombre', () => {
-		expect(grupos.map((g) => [g.legajo, g.nombre])).toEqual([
-			['087', 'Oleg Baranov'],
-			['214', 'Marta Quiroga']
-		]);
+	it('ordena por nombre', () => {
+		expect(grupos.map((g) => g.empleado)).toEqual(['Marta Quiroga', 'Oleg Baranov']);
 	});
 
 	it('toma la entrega más reciente como última', () => {

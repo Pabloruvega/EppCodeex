@@ -5,7 +5,7 @@ import { movimientosACsv } from '#lib/server/csv.js';
 import { ErrorUsuario } from '#lib/server/errores.js';
 import { movimientosAXlsx } from '#lib/server/excel.js';
 import { movimientosAPdf } from '#lib/server/pdf.js';
-import { leerArticuloNuevo, leerEntrega, normalizarEmpleado } from '#lib/server/validacion.js';
+import { leerArticuloNuevo, leerEntrega } from '#lib/server/validacion.js';
 
 const formulario = (campos: Record<string, string>) => {
 	const f = new FormData();
@@ -14,22 +14,20 @@ const formulario = (campos: Record<string, string>) => {
 };
 
 describe('validación', () => {
-	it('normaliza el empleado a "legajo - nombre"', () => {
-		expect(normalizarEmpleado('  123 -   Juan   Pérez ')).toBe('123 - Juan Pérez');
-		expect(normalizarEmpleado('123-Juan')).toBe('123 - Juan');
-		expect(normalizarEmpleado('Juan Pérez')).toBeNull();
-		expect(normalizarEmpleado('123 - ')).toBeNull();
+	it('el empleado es solo el nombre, sin espacios de más', () => {
+		const f = formulario({ empleado: '  Juan   Pérez ', articuloId: '2', cantidad: '3', fecha: '2026-02-28' });
+		expect(leerEntrega(f).empleado).toBe('Juan Pérez');
 	});
 
 	it('acepta una entrega válida', () => {
 		const datos = leerEntrega(
-			formulario({ empleado: '7 - Ana', articuloId: '2', cantidad: '3', fecha: '2026-02-28', observaciones: '' })
+			formulario({ empleado: 'Ana', articuloId: '2', cantidad: '3', fecha: '2026-02-28', observaciones: '' })
 		);
-		expect(datos).toEqual({ empleado: '7 - Ana', items: [{ articuloId: 2, cantidad: 3 }], fecha: '2026-02-28', observaciones: null });
+		expect(datos).toEqual({ empleado: 'Ana', items: [{ articuloId: 2, cantidad: 3 }], fecha: '2026-02-28', observaciones: null });
 	});
 
 	it('acepta varios artículos, ignora renglones vacíos y suma los repetidos', () => {
-		const f = formulario({ empleado: '7 - Ana', fecha: '2026-02-28' });
+		const f = formulario({ empleado: 'Ana', fecha: '2026-02-28' });
 		for (const [id, cantidad] of [['2', '3'], ['', '1'], ['5', '1'], ['2', '4']]) {
 			f.append('articuloId', id);
 			f.append('cantidad', cantidad);
@@ -46,9 +44,9 @@ describe('validación', () => {
 		['cantidad decimal', { cantidad: '1.5' }],
 		['fecha inexistente', { fecha: '2026-02-30' }],
 		['sin artículo', { articuloId: '' }],
-		['empleado sin legajo', { empleado: 'Ana' }]
+		['empleado vacío', { empleado: '   ' }]
 	])('rechaza una entrega con %s', (_, cambio) => {
-		const base = { empleado: '7 - Ana', articuloId: '2', cantidad: '3', fecha: '2026-02-28' };
+		const base = { empleado: 'Ana', articuloId: '2', cantidad: '3', fecha: '2026-02-28' };
 		expect(() => leerEntrega(formulario({ ...base, ...cambio }))).toThrow(ErrorUsuario);
 	});
 
@@ -73,10 +71,10 @@ describe('fechas y exportaciones', () => {
 
 	it('el CSV escapa separadores y evita fórmulas', () => {
 		const csv = movimientosACsv([
-			{ id: 1, tipo: 'entrega', fecha: '2026-11-12', articulo: 'Guantes', cantidad: 2, empleado: '1 - Ana', observaciones: '=HYPERLINK("x"); talle L' }
+			{ id: 1, tipo: 'entrega', fecha: '2026-11-12', articulo: 'Guantes', cantidad: 2, empleado: 'Ana', observaciones: '=HYPERLINK("x"); talle L' }
 		]);
 		expect(csv.startsWith('﻿Fecha;Tipo;Artículo;Cantidad;Empleado;Observaciones\r\n')).toBe(true);
-		expect(csv).toContain('12/11/2026;Entrega;Guantes;2;1 - Ana;"\'=HYPERLINK(""x""); talle L"');
+		expect(csv).toContain('12/11/2026;Entrega;Guantes;2;Ana;"\'=HYPERLINK(""x""); talle L"');
 	});
 
 	const movimiento = {
@@ -85,7 +83,7 @@ describe('fechas y exportaciones', () => {
 		fecha: '2026-11-12',
 		articulo: 'Guantes',
 		cantidad: 2,
-		empleado: '1 - Ana',
+		empleado: 'Ana',
 		observaciones: '=1+1 😀'
 	};
 
@@ -94,7 +92,7 @@ describe('fechas y exportaciones', () => {
 		await libro.xlsx.load((await movimientosAXlsx([movimiento])).buffer);
 		const hoja = libro.getWorksheet('Movimientos')!;
 		expect(hoja.getRow(1).values).toEqual([undefined, 'Fecha', 'Tipo', 'Artículo', 'Cantidad', 'Empleado', 'Observaciones']);
-		expect(hoja.getRow(2).values).toEqual([undefined, new Date('2026-11-12T00:00:00Z'), 'Entrega', 'Guantes', 2, '1 - Ana', '=1+1 😀']);
+		expect(hoja.getRow(2).values).toEqual([undefined, new Date('2026-11-12T00:00:00Z'), 'Entrega', 'Guantes', 2, 'Ana', '=1+1 😀']);
 	});
 
 	it('el PDF se genera aunque haya caracteres fuera de Latin-1', async () => {

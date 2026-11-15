@@ -27,14 +27,6 @@ export function leerId(form: FormData, campo = 'id'): number {
 	return entero(form, campo, 'Identificador', { min: 1 });
 }
 
-/** Normaliza "  123 -  Juan   Pérez " → "123 - Juan Pérez". */
-export function normalizarEmpleado(valor: string): string | null {
-	const m = valor.trim().match(/^(\S+?)\s*-\s*(.+)$/);
-	if (!m) return null;
-	const nombre = m[2].replace(/\s+/g, ' ').trim();
-	return nombre ? `${m[1]} - ${nombre}` : null;
-}
-
 export function leerArticuloNuevo(form: FormData) {
 	const nombre = texto(form, 'nombre').replace(/\s+/g, ' ');
 	if (!nombre) throw new ErrorUsuario('Ingresá el nombre del artículo.');
@@ -62,8 +54,8 @@ export function leerIngreso(form: FormData) {
 }
 
 export function leerEntrega(form: FormData) {
-	const empleado = normalizarEmpleado(texto(form, 'empleado'));
-	if (!empleado) throw new ErrorUsuario('Empleado: usá el formato "legajo - nombre" (por ejemplo "123 - Juan Pérez").');
+	const empleado = texto(form, 'empleado').replace(/\s+/g, ' ');
+	if (!empleado) throw new ErrorUsuario('Ingresá el nombre del empleado.');
 	if (empleado.length > 120) throw new ErrorUsuario('Empleado: el texto es demasiado largo.');
 
 	const items = leerItemsEntrega(form);

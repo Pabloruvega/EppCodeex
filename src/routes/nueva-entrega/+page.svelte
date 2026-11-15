@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import Aviso from '#lib/Aviso.svelte';
-	import { separarEmpleado } from '#lib/empleado.js';
 	import { despuesDeEntregar } from '#lib/estado-stock.js';
 	import type { PageProps } from './$types';
 
@@ -36,7 +35,7 @@
 	// Resumen de la barra de cierre: sólo cuenta renglones completos.
 	const completas = $derived(filas.filter((f) => f.articuloId && f.cantidad && f.cantidad > 0));
 	const unidades = $derived(completas.reduce((s, f) => s + (f.cantidad ?? 0), 0));
-	const nombreEmpleado = $derived(empleado.trim() ? separarEmpleado(empleado).nombre : '');
+	const nombreEmpleado = $derived(empleado.trim());
 
 	const alEnviar: SubmitFunction = () => async ({ result, update }) => {
 		await update();
@@ -56,11 +55,11 @@
 	<form method="POST" use:enhance={alEnviar} class="tarjeta pila">
 		<div class="campos-entrega">
 			<label>
-				Empleado (legajo - nombre)
+				Empleado
 				<input
 					name="empleado"
 					list="lista-empleados"
-					placeholder="123 - Juan Pérez"
+					placeholder="Juan Pérez"
 					autocomplete="off"
 					required
 					bind:value={empleado}

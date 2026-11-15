@@ -1,5 +1,4 @@
 import { asc, desc, eq, isNotNull, lte, sql } from 'drizzle-orm';
-import { separarEmpleado } from '../empleado.js';
 import type { Db } from './db/index.js';
 import { articulos, movimientos } from './db/schema.js';
 
@@ -68,10 +67,8 @@ export async function listarEmpleados(db: Db) {
 export type FilaMovimiento = Awaited<ReturnType<typeof listarMovimientos>>[number];
 
 export type EntregasEmpleado = {
-	/** Tal como se guardó: "legajo - nombre". Es la clave del grupo y lo que usa la búsqueda. */
+	/** Nombre tal como se guardó. Es la clave del grupo y lo que usa la búsqueda. */
 	empleado: string;
-	legajo: string;
-	nombre: string;
 	/** Fecha ISO de la entrega más reciente. */
 	ultima: string;
 	totales: { articulo: string; cantidad: number }[];
@@ -86,7 +83,7 @@ export function agruparPorEmpleado(entregas: FilaMovimiento[]): EntregasEmpleado
 		let grupo = grupos.get(clave);
 		if (!grupo) {
 			// Como vienen de la más nueva a la más vieja, la primera de cada empleado es la última entrega.
-			grupo = { empleado: clave, ...separarEmpleado(clave), ultima: e.fecha, totales: [], detalle: [] };
+			grupo = { empleado: clave, ultima: e.fecha, totales: [], detalle: [] };
 			grupos.set(clave, grupo);
 		}
 		grupo.detalle.push(e);
@@ -96,5 +93,5 @@ export function agruparPorEmpleado(entregas: FilaMovimiento[]): EntregasEmpleado
 	}
 	return [...grupos.values()]
 		.map((g) => ({ ...g, totales: g.totales.sort((a, b) => a.articulo.localeCompare(b.articulo, 'es')) }))
-		.sort((a, b) => a.empleado.localeCompare(b.empleado, 'es', { numeric: true }));
+		.sort((a, b) => a.empleado.localeCompare(b.empleado, 'es'));
 }
