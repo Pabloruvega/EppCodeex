@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatearFecha } from '#lib/fechas.js';
+	import { coincide } from '#lib/texto.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -8,10 +9,7 @@
 	// svelte-ignore state_referenced_locally
 	let busqueda = $state(data.q);
 
-	const normalizar = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-	const empleadosFiltrados = $derived(
-		data.empleados.filter((e) => normalizar(e.empleado).includes(normalizar(busqueda.trim())))
-	);
+	const empleadosFiltrados = $derived(data.empleados.filter((e) => coincide(e.empleado, busqueda)));
 </script>
 
 <svelte:head>

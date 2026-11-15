@@ -1,4 +1,5 @@
 import { asc, desc, eq, isNotNull, lte, sql } from 'drizzle-orm';
+import { separarEmpleado } from '../empleado.js';
 import type { Db } from './db/index.js';
 import { articulos, movimientos } from './db/schema.js';
 
@@ -76,12 +77,6 @@ export type EntregasEmpleado = {
 	totales: { articulo: string; cantidad: number }[];
 	detalle: FilaMovimiento[];
 };
-
-/** Separa "123 - Juan Pérez" en legajo y nombre; si no tiene ese formato, todo va al nombre. */
-export function separarEmpleado(empleado: string): { legajo: string; nombre: string } {
-	const m = empleado.match(/^(\S+?)\s*-\s*(.+)$/);
-	return m ? { legajo: m[1], nombre: m[2].trim() } : { legajo: '', nombre: empleado };
-}
 
 /** Agrupa entregas (ya ordenadas por fecha desc) por empleado, con totales por artículo. */
 export function agruparPorEmpleado(entregas: FilaMovimiento[]): EntregasEmpleado[] {

@@ -2,7 +2,15 @@
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import { SvelteSet } from 'svelte/reactivity';
 	import Aviso from '#lib/Aviso.svelte';
-	import { barraStock, estadoStock, ordenarPorUrgencia, TEXTO_ESTADO } from '#lib/estado-stock.js';
+	import {
+		estadoStock,
+		ordenarPorUrgencia,
+		pasaFiltro,
+		resumenStock,
+		TEXTO_ESTADO,
+		type FiltroStock
+	} from '#lib/estado-stock.js';
+	import { coincide } from '#lib/texto.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -10,7 +18,33 @@
 	/** Valores enviados en el último formulario fallido, para no perder lo escrito. */
 	const valores = $derived<Record<string, string>>(form && 'valores' in form ? (form.valores ?? {}) : {});
 
-	const articulos = $derived(ordenarPorUrgencia(data.articulos));
+	const resumen = $derived(resumenStock(data.articulos));
+
+	// Arranca con ?q= (funciona sin JS); con JS filtra mientras se escribe.
+	// svelte-ignore state_referenced_locally
+	let busqueda = $state(data.q);
+
+	const articulos = $derived(
+		ordenarPorUrgencia(
+			data.articulos.filter(
+				(a) => coincide(a.nombre, busqueda) && pasaFiltro(estadoStock(a.stock, a.stockMinimo), data.filtro)
+			)
+		)
+	);
+
+	const filtros: { valor: FiltroStock; texto: string }[] = [
+		{ valor: 'todos', texto: 'Todos' },
+		{ valor: 'reponer', texto: 'A reponer' },
+		{ valor: 'sin-stock', texto: 'Sin stock' }
+	];
+
+	/** Enlace a un filtro conservando lo que se está buscando. */
+	const hrefFiltro = (filtro: FiltroStock) => {
+		const p = new URLSearchParams();
+		if (busqueda.trim()) p.set('q', busqueda.trim());
+		if (filtro !== 'todos') p.set('estado', filtro);
+		return `?${p}`;
+	};
 
 	// "Guardar" aparece sólo en las filas que se editaron. Sin JS no se puede saber, así que se ve siempre.
 	let conJs = $state(false);
@@ -40,6 +74,45 @@
 	{#if data.articulos.length === 0}
 		<p class="tenue">Todavía no hay artículos cargados.</p>
 	{:else}
+		<!-- Resumen: los números de alerta van en rojo sólo si hay algo que atender -->
+		<dl class="resumen-stock">
+			<div class="dato">
+				<dt>Artículos</dt>
+				<dd>{resumen.articulos}</dd>
+			</div>
+			<div class="dato" class:aviso={resumen.aReponer > 0}>
+				<dt>A reponer</dt>
+				<dd>{resumen.aReponer}</dd>
+			</div>
+			<div class="dato" class:aviso={resumen.sinStock > 0}>
+				<dt>Sin stock</dt>
+				<dd>{resumen.sinStock}</dd>
+			</div>
+		</dl>
+
+		<div class="filtros-stock">
+			<form method="GET" class="buscar" role="search">
+				<input type="search" name="q" placeholder="Buscar artículo" aria-label="Buscar artículo" bind:value={busqueda} />
+				{#if data.filtro !== 'todos'}<input type="hidden" name="estado" value={data.filtro} />{/if}
+				<button class="secundario">Buscar</button>
+			</form>
+			<nav class="segmento" aria-label="Filtrar por estado">
+				{#each filtros as f (f.valor)}
+					<a
+						href={hrefFiltro(f.valor)}
+						aria-current={data.filtro === f.valor ? 'page' : undefined}
+						data-sveltekit-noscroll
+						data-sveltekit-replacestate
+						data-sveltekit-keepfocus>{f.texto}</a
+					>
+				{/each}
+			</nav>
+		</div>
+	{/if}
+
+	{#if data.articulos.length > 0 && articulos.length === 0}
+		<p class="tenue">Ningún artículo coincide con la búsqueda o el filtro.</p>
+	{:else if articulos.length > 0}
 		<table class="tabla-stock">
 			<thead>
 				<tr>
@@ -53,34 +126,26 @@
 			<tbody>
 				{#each articulos as a (a.id)}
 					{@const estado = estadoStock(a.stock, a.stockMinimo)}
-					{@const barra = barraStock(a.stock, a.stockMinimo)}
 					<tr>
 						<td data-label="Artículo" class:articulo-urgente={estado !== 'ok'}>{a.nombre}</td>
 						<td data-label="Stock" class="num">
-							<div class="cantidad">
-								{#if data.admin}
-									<input
-										class="celda"
-										form="editar-{a.id}"
-										name="stock"
-										type="number"
-										min="0"
-										step="1"
-										inputmode="numeric"
-										value={a.stock}
-										aria-label="Stock de {a.nombre}"
-										required
-										oninput={() => editados.add(a.id)}
-									/>
-								{:else}
-									{a.stock}
-								{/if}
-								<!-- La barra compara el stock con el mínimo (la marca vertical); el estado ya lo dice en texto. -->
-								<span class="barra {estado}" aria-hidden="true">
-									<span class="relleno" style:width="{barra.relleno * 100}%"></span>
-									{#if barra.marca !== null}<span class="marca-minimo" style:left="{barra.marca * 100}%"></span>{/if}
-								</span>
-							</div>
+							{#if data.admin}
+								<input
+									class="celda"
+									form="editar-{a.id}"
+									name="stock"
+									type="number"
+									min="0"
+									step="1"
+									inputmode="numeric"
+									value={a.stock}
+									aria-label="Stock de {a.nombre}"
+									required
+									oninput={() => editados.add(a.id)}
+								/>
+							{:else}
+								{a.stock}
+							{/if}
 						</td>
 						<td data-label="Mínimo" class="num">
 							{#if data.admin}

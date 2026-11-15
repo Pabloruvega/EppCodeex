@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import Aviso from '#lib/Aviso.svelte';
+	import { separarEmpleado } from '#lib/empleado.js';
+	import { despuesDeEntregar } from '#lib/estado-stock.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -18,12 +20,30 @@
 			: [filaVacia()]
 	);
 
+	// svelte-ignore state_referenced_locally
+	let empleado = $state(form?.valores?.empleado ?? '');
+
 	const elegidos = $derived(new Set(filas.map((f) => f.articuloId)));
-	const stockDe = (articuloId: string) => data.articulos.find((a) => String(a.id) === articuloId)?.stock;
+	const articuloDe = (articuloId: string) => data.articulos.find((a) => String(a.id) === articuloId);
+
+	/** Cómo queda el artículo del renglón después de la entrega; null mientras falte elegirlo o poner la cantidad. */
+	const restoDe = (fila: Fila) => {
+		const a = articuloDe(fila.articuloId);
+		if (!a || !fila.cantidad || fila.cantidad < 1) return null;
+		return despuesDeEntregar(a.stock, a.stockMinimo, fila.cantidad);
+	};
+
+	// Resumen de la barra de cierre: sólo cuenta renglones completos.
+	const completas = $derived(filas.filter((f) => f.articuloId && f.cantidad && f.cantidad > 0));
+	const unidades = $derived(completas.reduce((s, f) => s + (f.cantidad ?? 0), 0));
+	const nombreEmpleado = $derived(empleado.trim() ? separarEmpleado(empleado).nombre : '');
 
 	const alEnviar: SubmitFunction = () => async ({ result, update }) => {
 		await update();
-		if (result.type === 'success') filas = [filaVacia()];
+		if (result.type === 'success') {
+			filas = [filaVacia()];
+			empleado = '';
+		}
 	};
 </script>
 
@@ -43,7 +63,7 @@
 					placeholder="123 - Juan Pérez"
 					autocomplete="off"
 					required
-					value={form?.valores?.empleado ?? ''}
+					bind:value={empleado}
 				/>
 			</label>
 			<datalist id="lista-empleados">
@@ -58,6 +78,7 @@
 		<fieldset class="renglones">
 			<legend>Artículos</legend>
 			{#each filas as fila, i (fila.clave)}
+				{@const resto = restoDe(fila)}
 				<div class="renglon">
 					<select name="articuloId" aria-label="Artículo {i + 1}" required bind:value={fila.articuloId}>
 						<option value="">Elegí…</option>
@@ -72,17 +93,21 @@
 						name="cantidad"
 						type="number"
 						min="1"
-						max={stockDe(fila.articuloId)}
+						max={articuloDe(fila.articuloId)?.stock}
 						step="1"
 						inputmode="numeric"
 						aria-label="Cantidad del artículo {i + 1}"
 						required
 						bind:value={fila.cantidad}
 					/>
+					<!-- Cuánto queda después de esta entrega; en rojo si queda en el mínimo o por debajo -->
+					<span class="quedan" class:poco={resto?.bajoMinimo}>
+						{#if resto}{resto.alcanza ? `quedan ${resto.quedan}` : `faltan ${-resto.quedan}`}{/if}
+					</span>
 					{#if filas.length > 1}
 						<button
 							type="button"
-							class="secundario"
+							class="discreto"
 							aria-label="Quitar artículo {i + 1}"
 							onclick={() => (filas = filas.filter((f) => f !== fila))}
 						>
@@ -91,14 +116,24 @@
 					{/if}
 				</div>
 			{/each}
-			<button type="button" class="secundario" onclick={() => filas.push(filaVacia())}>+ Agregar artículo</button>
+			<button type="button" class="discreto" onclick={() => filas.push(filaVacia())}>+ Agregar artículo</button>
 		</fieldset>
 
 		<label>
 			Observaciones (opcional)
 			<input name="observaciones" maxlength="500" value={form?.valores?.observaciones ?? ''} />
 		</label>
-		<button type="submit">Registrar entrega</button>
 		<Aviso resultado={form} />
+		<div class="cierre">
+			<p class="resumen">
+				{#if completas.length > 0}
+					<b>{completas.length}</b>
+					{completas.length === 1 ? 'artículo' : 'artículos'} ·
+					<b>{unidades}</b>
+					{unidades === 1 ? 'unidad' : 'unidades'}{#if nombreEmpleado}&nbsp;para {nombreEmpleado}{/if}
+				{/if}
+			</p>
+			<button type="submit">Registrar entrega</button>
+		</div>
 	</form>
 </main>

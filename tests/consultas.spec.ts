@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { agruparPorEmpleado, contarAReponer, separarEmpleado, type FilaMovimiento } from '#lib/server/consultas.js';
+import { separarEmpleado } from '#lib/empleado.js';
+import { agruparPorEmpleado, contarAReponer, type FilaMovimiento } from '#lib/server/consultas.js';
 import { articulos } from '#lib/server/db/schema.js';
 import { crearDbTest } from './db-test.js';
 

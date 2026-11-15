@@ -1,5 +1,66 @@
 import { describe, expect, it } from 'vitest';
-import { barraStock, estadoStock, ordenarPorUrgencia } from '#lib/estado-stock.js';
+import {
+	despuesDeEntregar,
+	estadoStock,
+	leerFiltro,
+	ordenarPorUrgencia,
+	pasaFiltro,
+	resumenStock
+} from '#lib/estado-stock.js';
+import { coincide } from '#lib/texto.js';
+
+describe('resumenStock', () => {
+	it('cuenta artículos, a reponer (con los sin stock) y sin stock', () => {
+		const articulos = [
+			{ stock: 40, stockMinimo: 15 },
+			{ stock: 0, stockMinimo: 2 },
+			{ stock: 6, stockMinimo: 20 },
+			{ stock: 24, stockMinimo: 10 }
+		];
+		expect(resumenStock(articulos)).toEqual({ articulos: 4, aReponer: 2, sinStock: 1 });
+	});
+});
+
+describe('filtro de stock', () => {
+	it('lee el filtro de la URL y cae en "todos" ante cualquier otra cosa', () => {
+		expect(leerFiltro('reponer')).toBe('reponer');
+		expect(leerFiltro('sin-stock')).toBe('sin-stock');
+		expect(leerFiltro('cualquiera')).toBe('todos');
+		expect(leerFiltro(null)).toBe('todos');
+	});
+
+	it('"a reponer" incluye los sin stock; "sin stock" sólo esos', () => {
+		expect(pasaFiltro('sin-stock', 'reponer')).toBe(true);
+		expect(pasaFiltro('ok', 'reponer')).toBe(false);
+		expect(pasaFiltro('reponer', 'sin-stock')).toBe(false);
+		expect(pasaFiltro('ok', 'todos')).toBe(true);
+	});
+});
+
+describe('coincide', () => {
+	it('ignora mayúsculas, acentos y espacios en los extremos', () => {
+		expect(coincide('Arnés de cuerpo completo', ' arnes ')).toBe(true);
+		expect(coincide('Casco', 'guante')).toBe(false);
+	});
+});
+
+describe('despuesDeEntregar', () => {
+	it('por encima del mínimo no avisa', () => {
+		expect(despuesDeEntregar(40, 15, 1)).toEqual({ quedan: 39, alcanza: true, bajoMinimo: false });
+	});
+
+	it('si queda en el mínimo o por debajo, avisa', () => {
+		expect(despuesDeEntregar(20, 15, 5)).toEqual({ quedan: 15, alcanza: true, bajoMinimo: true });
+	});
+
+	it('si se lleva todo, queda sin stock', () => {
+		expect(despuesDeEntregar(6, 0, 6)).toEqual({ quedan: 0, alcanza: true, bajoMinimo: true });
+	});
+
+	it('si se pide más de lo que hay, no alcanza', () => {
+		expect(despuesDeEntregar(3, 1, 5)).toEqual({ quedan: -2, alcanza: false, bajoMinimo: true });
+	});
+});
 
 describe('estadoStock', () => {
 	it('stock en cero es sin stock, aunque el mínimo sea cero', () => {
@@ -39,16 +100,3 @@ describe('ordenarPorUrgencia', () => {
 	});
 });
 
-describe('barraStock', () => {
-	it('con stock bajo, la escala es el doble del mínimo', () => {
-		expect(barraStock(5, 10)).toEqual({ relleno: 0.25, marca: 0.5 });
-	});
-
-	it('con stock alto, la escala es el stock', () => {
-		expect(barraStock(40, 10)).toEqual({ relleno: 1, marca: 0.25 });
-	});
-
-	it('sin mínimo no hay marca, y sin nada no divide por cero', () => {
-		expect(barraStock(0, 0)).toEqual({ relleno: 0, marca: null });
-	});
-});

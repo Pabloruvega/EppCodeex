@@ -1,3 +1,4 @@
+import { leerFiltro } from '#lib/estado-stock.js';
 import { ejecutar } from '#lib/server/acciones.js';
 import { requireAdmin } from '#lib/server/auth.js';
 import { listarArticulos } from '#lib/server/consultas.js';
@@ -5,8 +6,13 @@ import { borrarArticulo, crearArticulo, editarArticulo, registrarIngreso } from 
 import { leerArticuloNuevo, leerEdicionArticulo, leerId, leerIngreso } from '#lib/server/validacion.js';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	return { articulos: await listarArticulos(locals.db) };
+export const load: PageServerLoad = async ({ locals, url }) => {
+	return {
+		articulos: await listarArticulos(locals.db),
+		// Búsqueda y filtro por estado van en la URL: funcionan sin JS y se pueden compartir como enlace.
+		q: url.searchParams.get('q')?.trim() ?? '',
+		filtro: leerFiltro(url.searchParams.get('estado'))
+	};
 };
 
 export const actions = {
