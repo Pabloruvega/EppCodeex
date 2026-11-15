@@ -34,8 +34,14 @@
 	{#each empleadosFiltrados as e (e.empleado)}
 		<details class="empleado">
 			<summary>
-				<strong>{e.empleado}</strong>
-				<span class="tenue">{e.totales.map((t) => `${t.articulo}: ${t.cantidad}`).join(' · ')}</span>
+				<span class="legajo">{e.legajo}</span>
+				<strong class="nombre">{e.nombre}</strong>
+				<span class="ultima">Última entrega: {formatearFecha(e.ultima)}</span>
+				<span class="totales">
+					{#each e.totales as t (t.articulo)}
+						<span class="chip">{t.articulo} <b>{t.cantidad}</b></span>
+					{/each}
+				</span>
 			</summary>
 			<table>
 				<thead><tr><th>Fecha</th><th>Artículo</th><th class="num">Cant.</th><th>Observaciones</th></tr></thead>

@@ -36,6 +36,26 @@
 		await instalacion?.prompt();
 		instalacion = null;
 	}
+
+	// Tema: por defecto sigue al sistema; el botón lo fija y se recuerda en este dispositivo (ver app.html).
+	// Queda en null hasta que corre JS, para no mostrar un botón que no funciona.
+	let oscuro = $state<boolean | null>(null);
+
+	$effect(() => {
+		const elegido = document.documentElement.dataset.tema;
+		oscuro = elegido ? elegido === 'oscuro' : matchMedia('(prefers-color-scheme: dark)').matches;
+	});
+
+	function cambiarTema() {
+		oscuro = !oscuro;
+		const tema = oscuro ? 'oscuro' : 'claro';
+		document.documentElement.dataset.tema = tema;
+		try {
+			localStorage.setItem('tema', tema);
+		} catch {
+			// sin almacenamiento (modo privado): el cambio vale hasta recargar
+		}
+	}
 </script>
 
 <svelte:head>
@@ -68,6 +88,9 @@
 		<div class="sesion">
 			{#if instalacion}
 				<button onclick={instalar}>Instalar app</button>
+			{/if}
+			{#if oscuro !== null}
+				<button class="secundario" onclick={cambiarTema}>{oscuro ? 'Modo claro' : 'Modo oscuro'}</button>
 			{/if}
 			{#if data.admin}
 				<form method="POST" action="/logout">

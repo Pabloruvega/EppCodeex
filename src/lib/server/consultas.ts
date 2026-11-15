@@ -67,10 +67,21 @@ export async function listarEmpleados(db: Db) {
 export type FilaMovimiento = Awaited<ReturnType<typeof listarMovimientos>>[number];
 
 export type EntregasEmpleado = {
+	/** Tal como se guardó: "legajo - nombre". Es la clave del grupo y lo que usa la búsqueda. */
 	empleado: string;
+	legajo: string;
+	nombre: string;
+	/** Fecha ISO de la entrega más reciente. */
+	ultima: string;
 	totales: { articulo: string; cantidad: number }[];
 	detalle: FilaMovimiento[];
 };
+
+/** Separa "123 - Juan Pérez" en legajo y nombre; si no tiene ese formato, todo va al nombre. */
+export function separarEmpleado(empleado: string): { legajo: string; nombre: string } {
+	const m = empleado.match(/^(\S+?)\s*-\s*(.+)$/);
+	return m ? { legajo: m[1], nombre: m[2].trim() } : { legajo: '', nombre: empleado };
+}
 
 /** Agrupa entregas (ya ordenadas por fecha desc) por empleado, con totales por artículo. */
 export function agruparPorEmpleado(entregas: FilaMovimiento[]): EntregasEmpleado[] {
@@ -79,7 +90,8 @@ export function agruparPorEmpleado(entregas: FilaMovimiento[]): EntregasEmpleado
 		const clave = e.empleado ?? '';
 		let grupo = grupos.get(clave);
 		if (!grupo) {
-			grupo = { empleado: clave, totales: [], detalle: [] };
+			// Como vienen de la más nueva a la más vieja, la primera de cada empleado es la última entrega.
+			grupo = { empleado: clave, ...separarEmpleado(clave), ultima: e.fecha, totales: [], detalle: [] };
 			grupos.set(clave, grupo);
 		}
 		grupo.detalle.push(e);

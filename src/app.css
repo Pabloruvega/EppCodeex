@@ -19,8 +19,9 @@
 	line-height: 1.45;
 }
 
+/* Por defecto se sigue el tema del sistema, salvo que se haya elegido el claro con el botón */
 @media (prefers-color-scheme: dark) {
-	:root {
+	:root:not([data-tema='claro']) {
 		--fondo: #0f1216;
 		--superficie: #171b21;
 		--texto: #e6e9ed;
@@ -36,6 +37,30 @@
 		--alerta-fondo: #3a1714;
 		--alerta-texto: #0b0d10;
 	}
+}
+
+/* Tema elegido con el botón de la barra (data-tema en <html>): le gana al del sistema.
+   Los valores oscuros son los mismos de arriba; si cambian, cambiar los dos bloques. */
+:root[data-tema='claro'] {
+	color-scheme: light;
+}
+
+:root[data-tema='oscuro'] {
+	color-scheme: dark;
+	--fondo: #0f1216;
+	--superficie: #171b21;
+	--texto: #e6e9ed;
+	--tenue: #9aa4ae;
+	--borde: #2d343c;
+	--borde-control: #6b7480;
+	--acento: #4c8dff;
+	--acento-texto: #0b0d10;
+	--acento-sobre-suave: #8ab4ff;
+	--ok: #4ac26b;
+	--ok-fondo: #12301b;
+	--alerta: #ff7b72;
+	--alerta-fondo: #3a1714;
+	--alerta-texto: #0b0d10;
 }
 
 * {
@@ -103,9 +128,13 @@ h1 {
 
 /* El isotipo es tinta negra sobre transparente: en modo oscuro se invierte a blanco */
 @media (prefers-color-scheme: dark) {
-	.marca img {
+	:root:not([data-tema='claro']) .marca img {
 		filter: invert(1);
 	}
+}
+
+:root[data-tema='oscuro'] .marca img {
+	filter: invert(1);
 }
 
 .sidebar nav {
@@ -437,6 +466,95 @@ td.num input {
 	text-align: right;
 }
 
+/* Campos dentro de la tabla: sin recuadro, sólo una línea abajo, para que la tabla se lea liviana */
+input.celda {
+	width: 4.75rem;
+	min-height: 2rem;
+	padding: 0.15rem 0.45rem;
+	border-color: transparent;
+	border-bottom-color: var(--borde-control);
+	border-radius: 6px 6px 0 0;
+	background: var(--fondo);
+}
+
+input.celda:hover,
+input.celda:focus {
+	border-color: var(--borde-control);
+}
+
+.articulo-urgente {
+	font-weight: 600;
+}
+
+/* Cantidad con la barra de stock contra mínimo debajo */
+.cantidad {
+	display: inline-grid;
+	justify-items: end;
+	gap: 0.3rem;
+}
+
+.barra {
+	position: relative;
+	display: block;
+	width: 4.75rem;
+	height: 0.4rem;
+	border-radius: 999px;
+	background: var(--borde);
+}
+
+.barra .relleno {
+	position: absolute;
+	inset: 0 auto 0 0;
+	border-radius: inherit;
+	background: var(--ok);
+}
+
+.barra.reponer .relleno,
+.barra.sin-stock .relleno {
+	background: var(--alerta);
+}
+
+.barra .marca-minimo {
+	position: absolute;
+	top: -0.2rem;
+	bottom: -0.2rem;
+	width: 2px;
+	margin-left: -1px;
+	background: var(--texto);
+}
+
+/* Acciones de cada fila: "Guardar" sólo si se editó, "+ Ingreso" y el menú ⋯ con Eliminar */
+.acciones form.sin-cambios {
+	visibility: hidden;
+}
+
+.acciones summary.accion {
+	min-height: 2rem;
+	padding: 0.2rem 0.65rem;
+	border: 1px solid var(--borde-control);
+	border-radius: 6px;
+	background: var(--superficie);
+	color: var(--texto);
+	font-size: 0.9rem;
+	list-style: none;
+	white-space: nowrap;
+}
+
+.acciones summary.accion::-webkit-details-marker {
+	display: none;
+}
+
+.acciones summary.mas {
+	border-color: transparent;
+	background: transparent;
+	font-size: 1.1rem;
+	line-height: 1;
+}
+
+.acciones details[open] > summary.accion {
+	background: var(--fondo);
+}
+
 .acciones {
 	display: flex;
 	flex-wrap: wrap;
@@ -520,10 +638,88 @@ details.empleado {
 	margin-block: 0.5rem;
 }
 
+/* Ficha de empleado: legajo, nombre y última entrega arriba; totales por artículo debajo */
 details.empleado summary {
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: auto auto minmax(0, 1fr) auto;
+	grid-template-areas:
+		'flecha legajo nombre ultima'
+		'. totales totales totales';
+	align-items: center;
+	gap: 0.25rem 0.75rem;
 	color: var(--texto);
-	padding-block: 0.5rem;
+	padding-block: 0.6rem;
+	list-style: none;
+}
+
+details.empleado summary::-webkit-details-marker {
+	display: none;
+}
+
+details.empleado summary::before {
+	content: '▸';
+	grid-area: flecha;
+	color: var(--tenue);
+	transition: rotate 0.15s;
+}
+
+details.empleado[open] summary::before {
+	rotate: 90deg;
+}
+
+details.empleado .legajo {
+	grid-area: legajo;
+	min-width: 2.5rem;
+	font-size: 0.85rem;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--tenue);
+}
+
+details.empleado .nombre {
+	grid-area: nombre;
+}
+
+details.empleado .ultima {
+	grid-area: ultima;
+	font-size: 0.85rem;
+	color: var(--tenue);
+	white-space: nowrap;
+}
+
+details.empleado .totales {
+	grid-area: totales;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 0.5rem;
+}
+
+.chip {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.35rem;
+	padding: 0.05rem 0.55rem;
+	border: 1px solid var(--borde);
+	border-radius: 999px;
+	font-size: 0.85rem;
+	color: var(--tenue);
+	white-space: nowrap;
+}
+
+.chip b {
+	color: var(--texto);
+	font-variant-numeric: tabular-nums;
+}
+
+/* Celular: la fecha baja a su propia línea, debajo del nombre */
+@media (max-width: 640px) {
+	details.empleado summary {
+		grid-template-columns: auto auto minmax(0, 1fr);
+		grid-template-areas:
+			'flecha legajo nombre'
+			'. ultima ultima'
+			'. totales totales';
+	}
 }
 
 details.empleado[open] {
@@ -571,5 +767,9 @@ details.empleado[open] {
 	}
 	.num {
 		text-align: right;
+	}
+	/* En la tarjeta del celular "Guardar" no reserva lugar: aparece al editar */
+	.acciones form.sin-cambios {
+		display: none;
 	}
 }

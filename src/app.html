@@ -6,6 +6,13 @@
 		<meta name="text-scale" content="scale" />
 		<meta name="robots" content="noindex, nofollow" />
 		<meta name="color-scheme" content="light dark" />
+		<script>
+			// Tema elegido con el botón de la barra: se aplica antes de pintar para que no parpadee.
+			try {
+				var tema = localStorage.getItem('tema');
+				if (tema === 'claro' || tema === 'oscuro') document.documentElement.dataset.tema = tema;
+			} catch (e) {}
+		</script>
 		<link rel="manifest" href="/manifest.webmanifest" />
 		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 		<meta name="apple-mobile-web-app-title" content="Stock EPP" />

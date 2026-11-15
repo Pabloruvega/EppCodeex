@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
+	import { SvelteSet } from 'svelte/reactivity';
 	import Aviso from '#lib/Aviso.svelte';
+	import { barraStock, estadoStock, ordenarPorUrgencia, TEXTO_ESTADO } from '#lib/estado-stock.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -8,8 +10,23 @@
 	/** Valores enviados en el último formulario fallido, para no perder lo escrito. */
 	const valores = $derived<Record<string, string>>(form && 'valores' in form ? (form.valores ?? {}) : {});
 
+	const articulos = $derived(ordenarPorUrgencia(data.articulos));
+
+	// "Guardar" aparece sólo en las filas que se editaron. Sin JS no se puede saber, así que se ve siempre.
+	let conJs = $state(false);
+	$effect(() => {
+		conJs = true;
+	});
+	const editados = new SvelteSet<number>();
+
 	// En las filas editables no reseteamos el formulario: los valores nuevos llegan con los datos.
-	const sinReset: SubmitFunction = () => async ({ update }) => update({ reset: false });
+	const guardar =
+		(id: number): SubmitFunction =>
+		() =>
+		async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type === 'success') editados.delete(id);
+		};
 
 	const aviso = (...acciones: string[]) => (form && acciones.includes(form.accion) ? form : null);
 </script>
@@ -34,34 +51,71 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each data.articulos as a (a.id)}
-					{@const reponer = a.stock <= a.stockMinimo}
+				{#each articulos as a (a.id)}
+					{@const estado = estadoStock(a.stock, a.stockMinimo)}
+					{@const barra = barraStock(a.stock, a.stockMinimo)}
 					<tr>
-						<td data-label="Artículo">{a.nombre}</td>
-						{#if data.admin}
-							<td data-label="Stock" class="num">
-								<input form="editar-{a.id}" name="stock" type="number" min="0" step="1" inputmode="numeric" value={a.stock} aria-label="Stock de {a.nombre}" required />
-							</td>
-							<td data-label="Mínimo" class="num">
-								<input form="editar-{a.id}" name="stockMinimo" type="number" min="0" step="1" inputmode="numeric" value={a.stockMinimo} aria-label="Mínimo de {a.nombre}" required />
-							</td>
-						{:else}
-							<td data-label="Stock" class="num">{a.stock}</td>
-							<td data-label="Mínimo" class="num">{a.stockMinimo}</td>
-						{/if}
-						<td data-label="Estado">
-							{#if a.stock === 0}<span class="etiqueta sin-stock">Sin stock</span>
-							{:else if reponer}<span class="etiqueta reponer">Reponer</span>
-							{:else}<span class="etiqueta ok">OK</span>{/if}
+						<td data-label="Artículo" class:articulo-urgente={estado !== 'ok'}>{a.nombre}</td>
+						<td data-label="Stock" class="num">
+							<div class="cantidad">
+								{#if data.admin}
+									<input
+										class="celda"
+										form="editar-{a.id}"
+										name="stock"
+										type="number"
+										min="0"
+										step="1"
+										inputmode="numeric"
+										value={a.stock}
+										aria-label="Stock de {a.nombre}"
+										required
+										oninput={() => editados.add(a.id)}
+									/>
+								{:else}
+									{a.stock}
+								{/if}
+								<!-- La barra compara el stock con el mínimo (la marca vertical); el estado ya lo dice en texto. -->
+								<span class="barra {estado}" aria-hidden="true">
+									<span class="relleno" style:width="{barra.relleno * 100}%"></span>
+									{#if barra.marca !== null}<span class="marca-minimo" style:left="{barra.marca * 100}%"></span>{/if}
+								</span>
+							</div>
 						</td>
+						<td data-label="Mínimo" class="num">
+							{#if data.admin}
+								<input
+									class="celda"
+									form="editar-{a.id}"
+									name="stockMinimo"
+									type="number"
+									min="0"
+									step="1"
+									inputmode="numeric"
+									value={a.stockMinimo}
+									aria-label="Mínimo de {a.nombre}"
+									required
+									oninput={() => editados.add(a.id)}
+								/>
+							{:else}
+								{a.stockMinimo}
+							{/if}
+						</td>
+						<td data-label="Estado"><span class="etiqueta {estado}">{TEXTO_ESTADO[estado]}</span></td>
 						{#if data.admin}
 							<td class="acciones">
-								<form id="editar-{a.id}" method="POST" action="?/editarArticulo" use:enhance={sinReset}>
+								<form
+									id="editar-{a.id}"
+									method="POST"
+									action="?/editarArticulo"
+									use:enhance={guardar(a.id)}
+									class:sin-cambios={conJs && !editados.has(a.id)}
+								>
 									<input type="hidden" name="id" value={a.id} />
-									<button class="secundario">Guardar</button>
+									<button>Guardar</button>
 								</form>
 								<details>
-									<summary>+ Ingreso</summary>
+									<summary class="accion">+ Ingreso</summary>
 									<form method="POST" action="?/ingreso" use:enhance class="en-linea">
 										<input type="hidden" name="articuloId" value={a.id} />
 										<input name="cantidad" type="number" min="1" step="1" inputmode="numeric" placeholder="Cantidad" aria-label="Cantidad a ingresar de {a.nombre}" required />
@@ -69,7 +123,7 @@
 									</form>
 								</details>
 								<details>
-									<summary class="peligro">Eliminar</summary>
+									<summary class="accion mas" aria-label="Más acciones para {a.nombre}" title="Más acciones">⋯</summary>
 									<form method="POST" action="?/borrarArticulo" use:enhance class="confirmacion">
 										<input type="hidden" name="id" value={a.id} />
 										<p>
