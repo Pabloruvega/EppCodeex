@@ -1,13 +1,18 @@
-import { isHttpError } from '@sveltejs/kit';
+import { isHttpError, isRedirect } from '@sveltejs/kit';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { crearSesion, passwordCorrecta, sesionValida } from '#lib/server/auth.js';
 import { articulos, movimientos } from '#lib/server/db/schema.js';
 import { crearArticulo, registrarEntrega, registrarIngreso } from '#lib/server/stock.js';
-import { actions, load } from '../src/routes/+page.server.js';
+import { actions as accionesStock, load as loadStock } from '../src/routes/+page.server.js';
+import { load as loadEntregas } from '../src/routes/entregas/+page.server.js';
+import { actions as accionesMovimientos, load as loadMovimientos } from '../src/routes/movimientos/+page.server.js';
+import { actions as accionesEntrega, load as loadNuevaEntrega } from '../src/routes/nueva-entrega/+page.server.js';
 import { GET as exportarCsv } from '../src/routes/movimientos.csv/+server.js';
 import { crearDbTest } from './db-test.js';
 
 const { db, vaciar } = await crearDbTest();
+
+const actions = { ...accionesStock, ...accionesMovimientos, entrega: accionesEntrega.default };
 
 // Eventos mínimos: las actions y el load solo usan locals, request y url.
 type CualquierEvento = any;
@@ -39,8 +44,8 @@ describe('acceso sin sesión', () => {
 		articuloId = (await crearArticulo(db, { nombre: 'Casco', stock: 10, stockMinimo: 1 })).id;
 		await registrarIngreso(db, { articuloId, cantidad: 7 });
 		movimientoId = (
-			await registrarEntrega(db, { articuloId, cantidad: 2, fecha: '2026-11-12', empleado: '5 - Ana', observaciones: null })
-		).movimiento.id;
+			await registrarEntrega(db, { items: [{ articuloId, cantidad: 2 }], fecha: '2026-11-12', empleado: '5 - Ana', observaciones: null })
+		)[0].movimiento.id;
 	});
 
 	const intentos: [keyof typeof actions, () => Record<string, string>][] = [
@@ -54,18 +59,29 @@ describe('acceso sin sesión', () => {
 
 	it.each(intentos)('la action %s responde 403 y no modifica nada', async (nombre, campos) => {
 		const antes = { a: await db.select().from(articulos), m: await db.select().from(movimientos) };
-		await esperarProhibido(Promise.resolve().then(() => actions[nombre](evento(false, campos()))), 403);
+		await esperarProhibido(Promise.resolve().then((): Promise<unknown> => actions[nombre](evento(false, campos()))), 403);
 		expect(await db.select().from(articulos)).toEqual(antes.a);
 		expect(await db.select().from(movimientos)).toEqual(antes.m);
 	});
 
-	it('el load público no incluye ingresos ni la lista de movimientos', async () => {
-		const data = (await load(evento(false))) as Record<string, unknown>;
-		expect(data.movimientos).toEqual([]);
-		expect(data.nombresEmpleados).toEqual([]);
+	it('los loads públicos no incluyen ingresos', async () => {
+		const data = { ...(await loadStock(evento(false))), ...(await loadEntregas(evento(false))) } as Record<string, unknown>;
 		expect(JSON.stringify(data)).not.toContain('ingreso');
 		// las entregas sí son públicas
 		expect(JSON.stringify(data.empleados)).toContain('5 - Ana');
+	});
+
+	it.each([
+		['movimientos', loadMovimientos],
+		['nueva entrega', loadNuevaEntrega]
+	])('la página de %s redirige al login', async (_, load) => {
+		const e = await Promise.resolve()
+			.then(() => load(evento(false)))
+			.then(
+				() => null,
+				(err: unknown) => err
+			);
+		expect(isRedirect(e) && e.location).toBe('/login');
 	});
 
 	it('el CSV responde 404 sin sesión', async () => {
@@ -83,7 +99,7 @@ describe('acceso con sesión de admin', () => {
 		const [{ id }] = await db.select().from(articulos);
 		await actions.ingreso(evento(true, { articuloId: String(id), cantidad: '2' }));
 
-		const data = (await load(evento(true))) as { movimientos: { tipo: string }[] };
+		const data = (await loadMovimientos(evento(true))) as { movimientos: { tipo: string }[] };
 		expect(data.movimientos.map((m) => m.tipo)).toEqual(['ingreso']);
 
 		const csv = await (await exportarCsv(evento(true))).text();
@@ -96,6 +112,20 @@ describe('acceso con sesión de admin', () => {
 			evento(true, { articuloId: String(id), cantidad: '2', fecha: '2026-11-12', empleado: '1 - Ana' })
 		);
 		expect(r).toMatchObject({ status: 400, data: { error: expect.stringMatching(/Stock insuficiente/) } });
+	});
+
+	it('registra una entrega de varios artículos', async () => {
+		const casco = await crearArticulo(db, { nombre: 'Casco', stock: 4, stockMinimo: 0 });
+		const guantes = await crearArticulo(db, { nombre: 'Guantes', stock: 9, stockMinimo: 0 });
+		const e = evento(true);
+		const body = new FormData();
+		for (const [k, v] of [['empleado', '1 - Ana'], ['fecha', '2026-11-12'], ['articuloId', String(casco.id)], ['cantidad', '1'], ['articuloId', String(guantes.id)], ['cantidad', '3']]) {
+			body.append(k, v);
+		}
+		e.request = new Request('http://localhost/', { method: 'POST', body });
+
+		expect(await actions.entrega(e)).toEqual({ mensaje: 'Entrega a 1 - Ana registrada: 1 × "Casco", 3 × "Guantes".' });
+		expect((await db.select().from(articulos)).map((a) => a.stock).sort()).toEqual([3, 6]);
 	});
 });
 

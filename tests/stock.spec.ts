@@ -20,8 +20,7 @@ async function stockDe(id: number) {
 }
 
 const entrega = (articuloId: number, cantidad: number) => ({
-	articuloId,
-	cantidad,
+	items: [{ articuloId, cantidad }],
 	fecha: '2026-11-12',
 	empleado: '123 - Juan Pérez',
 	observaciones: null
@@ -55,7 +54,7 @@ describe('lógica de stock', () => {
 	});
 
 	it('una entrega descuenta del stock y registra al empleado', async () => {
-		const { articulo, movimiento } = await registrarEntrega(db, entrega(guantes, 3));
+		const [{ articulo, movimiento }] = await registrarEntrega(db, entrega(guantes, 3));
 		expect(articulo.stock).toBe(7);
 		expect(movimiento).toMatchObject({ tipo: 'entrega', cantidad: 3, empleado: '123 - Juan Pérez' });
 	});
@@ -77,12 +76,42 @@ describe('lógica de stock', () => {
 		expect(await stockDe(guantes)).toBe(4);
 	});
 
+	it('una entrega con varios artículos descuenta cada uno y registra un movimiento por artículo', async () => {
+		const casco = (await crearArticulo(db, { nombre: 'Casco', stock: 5, stockMinimo: 0 })).id;
+		const entregados = await registrarEntrega(db, {
+			...entrega(guantes, 3),
+			items: [
+				{ articuloId: casco, cantidad: 1 },
+				{ articuloId: guantes, cantidad: 3 }
+			]
+		});
+		expect(entregados.map((e) => [e.articulo.nombre, e.articulo.stock])).toEqual([
+			['Guantes', 7],
+			['Casco', 4]
+		]);
+		const registrados = await db.select().from(movimientos);
+		expect(registrados).toHaveLength(2);
+		expect(registrados.every((m) => m.tipo === 'entrega' && m.empleado === '123 - Juan Pérez')).toBe(true);
+	});
+
+	it('si falta stock de un artículo no se entrega ninguno', async () => {
+		const casco = (await crearArticulo(db, { nombre: 'Casco', stock: 1, stockMinimo: 0 })).id;
+		const items = [
+			{ articuloId: guantes, cantidad: 2 },
+			{ articuloId: casco, cantidad: 2 }
+		];
+		await expect(registrarEntrega(db, { ...entrega(guantes, 2), items })).rejects.toThrow(/Stock insuficiente de "Casco"/);
+		expect(await stockDe(guantes)).toBe(10);
+		expect(await stockDe(casco)).toBe(1);
+		expect(await db.select().from(movimientos)).toHaveLength(0);
+	});
+
 	it('entregar un artículo inexistente falla', async () => {
 		await expect(registrarEntrega(db, entrega(9999, 1))).rejects.toThrow('El artículo no existe.');
 	});
 
 	it('borrar una entrega devuelve el stock', async () => {
-		const { movimiento } = await registrarEntrega(db, entrega(guantes, 4));
+		const [{ movimiento }] = await registrarEntrega(db, entrega(guantes, 4));
 		await borrarMovimiento(db, movimiento.id);
 		expect(await stockDe(guantes)).toBe(10);
 		expect(await db.select().from(movimientos)).toHaveLength(0);

@@ -1,7 +1,7 @@
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { hoyISO } from '#lib/fechas.js';
 import type { Db } from './db/index.js';
-import { articulos, movimientos } from './db/schema.js';
+import { articulos, movimientos, type Articulo, type Movimiento } from './db/schema.js';
 import { ErrorUsuario } from './errores.js';
 
 // Toda operación que toca stock + movimiento corre en una transacción.
@@ -52,30 +52,48 @@ export async function registrarIngreso(db: Db, datos: { articuloId: number; cant
 	});
 }
 
+/**
+ * Entrega uno o más artículos a un empleado: un movimiento por artículo.
+ * Si falta stock de alguno, no se registra ninguno.
+ */
 export async function registrarEntrega(
 	db: Db,
-	datos: { articuloId: number; cantidad: number; fecha: string; empleado: string; observaciones: string | null }
+	datos: {
+		items: { articuloId: number; cantidad: number }[];
+		fecha: string;
+		empleado: string;
+		observaciones: string | null;
+	}
 ) {
+	const { items, ...comunes } = datos;
+	// Siempre en el mismo orden, para que dos entregas simultáneas no se bloqueen entre sí.
+	const ordenados = [...items].sort((a, b) => a.articuloId - b.articuloId);
+
 	return db.transaction(async (tx) => {
-		const [articulo] = await tx
-			.update(articulos)
-			.set({ stock: sql`${articulos.stock} - ${datos.cantidad}` })
-			.where(and(eq(articulos.id, datos.articuloId), gte(articulos.stock, datos.cantidad)))
-			.returning();
+		const entregados: { articulo: Articulo; movimiento: Movimiento }[] = [];
+		for (const item of ordenados) {
+			const [articulo] = await tx
+				.update(articulos)
+				.set({ stock: sql`${articulos.stock} - ${item.cantidad}` })
+				.where(and(eq(articulos.id, item.articuloId), gte(articulos.stock, item.cantidad)))
+				.returning();
 
-		if (!articulo) {
-			const [actual] = await tx.select().from(articulos).where(eq(articulos.id, datos.articuloId));
-			if (!actual) throw new ErrorUsuario('El artículo no existe.');
-			throw new ErrorUsuario(
-				`Stock insuficiente de "${actual.nombre}": hay ${actual.stock} y se quieren entregar ${datos.cantidad}. No se registró la entrega.`
-			);
+			// Lanzar dentro de la transacción deshace también los artículos ya descontados.
+			if (!articulo) {
+				const [actual] = await tx.select().from(articulos).where(eq(articulos.id, item.articuloId));
+				if (!actual) throw new ErrorUsuario('El artículo no existe.');
+				throw new ErrorUsuario(
+					`Stock insuficiente de "${actual.nombre}": hay ${actual.stock} y se quieren entregar ${item.cantidad}. No se registró la entrega.`
+				);
+			}
+
+			const [movimiento] = await tx
+				.insert(movimientos)
+				.values({ tipo: 'entrega', ...comunes, ...item })
+				.returning();
+			entregados.push({ articulo, movimiento });
 		}
-
-		const [movimiento] = await tx
-			.insert(movimientos)
-			.values({ tipo: 'entrega', ...datos })
-			.returning();
-		return { articulo, movimiento };
+		return entregados;
 	});
 }
 

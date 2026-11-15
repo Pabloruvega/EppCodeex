@@ -1,9 +1,9 @@
 # Stock de EPP
 
-Control de stock de equipos de protección personal. Una sola página:
+Control de stock de equipos de protección personal, con una barra lateral para moverse entre secciones:
 
 - **Público (sin login):** stock actual y entregas por empleado (solo lectura).
-- **Admin (contraseña única):** alta, edición y borrado de artículos, ingresos, entregas, lista de movimientos y exportación a CSV.
+- **Admin (contraseña única):** alta, edición y borrado de artículos, ingresos, entregas (de uno o varios artículos a la vez), lista de movimientos y exportación a CSV.
 
 Stack: SvelteKit 3 + TypeScript, `@sveltejs/adapter-vercel`, Neon Postgres, Drizzle ORM, Vitest.
 
@@ -25,9 +25,14 @@ src/
     consultas.ts                lecturas para la página
     auth.ts                     cookie firmada, comparación en tiempo constante, requireAdmin()
     limite-login.ts             5 intentos por IP cada 15 minutos (en la base)
+    acciones.ts                 ejecuta una action y traduce los ErrorUsuario a fail(400)
     validacion.ts, csv.ts
   routes/
-    +page.server.ts / .svelte   página única: load + actions
+    +layout.server.ts / .svelte barra lateral (las secciones de admin solo aparecen con sesión)
+    +page.server.ts / .svelte   stock: público; con sesión, edición, ingresos y altas
+    nueva-entrega/              entrega de uno o varios artículos (solo admin)
+    entregas/                   entregas por empleado (público)
+    movimientos/                ingresos y entregas, con borrado (solo admin)
     login/                      formulario de login
     logout/+server.ts           POST: borra la cookie
     movimientos.csv/+server.ts  exportación (solo admin; 404 si no)
@@ -59,7 +64,7 @@ npm run check     # tipos (svelte-check)
 Los tests no necesitan Neon: usan [PGlite](https://pglite.dev) (Postgres compilado a WASM, en memoria) y aplican las mismas migraciones de `drizzle/`. Cubren:
 
 - `tests/stock.spec.ts`: entrega, ingreso, borrado con reversión, stock insuficiente, concurrencia y borrado en cascada.
-- `tests/acceso.spec.ts`: sin sesión, toda action responde 403 sin modificar la base, el `load` no envía ingresos y el CSV da 404. Además, validez de la cookie.
+- `tests/acceso.spec.ts`: sin sesión, toda action responde 403 sin modificar la base, los `load` públicos no envían ingresos, las páginas de admin redirigen al login y el CSV da 404. Además, validez de la cookie.
 - `tests/validacion.spec.ts`: parseo de formularios, fechas y escapado del CSV.
 
 ### Build local en Windows
@@ -126,6 +131,7 @@ Si preferís migrar a mano, corré `npm run db:migrate` con el `.env` apuntando 
 
 - **Una conexión por request.** Neon recomienda crear y cerrar el `Pool` dentro de cada request en Vercel Functions. Lo hace `hooks.server.ts` y lo expone como `locals.db`, lo que además permite inyectar PGlite en los tests.
 - **Driver `neon-serverless` (WebSocket) y no `neon-http`**: `neon-http` no soporta transacciones interactivas.
+- **Una entrega de varios artículos es todo o nada.** Se registra un movimiento por artículo dentro de una misma transacción; si falta stock de uno, no se descuenta ninguno. No hay tabla de "entregas": cada movimiento se puede borrar por separado.
 - **Stock nunca negativo.** Las restas usan `UPDATE … WHERE stock >= n` dentro de la transacción, y hay un `CHECK (stock >= 0)` de respaldo.
 - **Borrar un artículo borra sus movimientos** (`ON DELETE CASCADE`); la confirmación avisa cuántos son.
 - **No se puede borrar un ingreso** si el stock quedaría negativo (ya se entregó).
@@ -133,8 +139,8 @@ Si preferís migrar a mano, corré `npm run db:migrate` con el `.env` apuntando 
 - **Los ingresos nunca salen del servidor sin sesión.** El `load` solo los consulta si `locals.admin`, y toda action llama a `requireAdmin()`.
 - **Límite de login en la base**, porque las instancias serverless no comparten memoria.
 - **No indexable:** `<meta name="robots" content="noindex">`, cabecera `X-Robots-Tag` y `robots.txt` con `Disallow: /`.
-- **Sin JS también funciona.** Las confirmaciones son `<details>` con el botón adentro (no `confirm()`), el autocompletado de empleados es un `<datalist>` y el buscador es un formulario GET. Con JS, `use:enhance` evita recargar la página y el buscador filtra mientras escribís.
-- **CSS propio**, sin Tailwind. Es una sola página; con variables CSS y `prefers-color-scheme` alcanza para el modo oscuro, sin sumar dependencias ni un paso de build.
+- **Sin JS también funciona.** Las confirmaciones son `<details>` con el botón adentro (no `confirm()`), el autocompletado de empleados es un `<datalist>` y el buscador es un formulario GET. Con JS, `use:enhance` evita recargar la página y el buscador filtra mientras escribís. La única excepción: sin JS, la entrega admite un solo artículo (agregar renglones necesita JS).
+- **CSS propio**, sin Tailwind. Son pocas páginas; con variables CSS y `prefers-color-scheme` alcanza para el modo oscuro, sin sumar dependencias ni un paso de build.
 - **CSV con `;` y BOM**, para que Excel en español lo abra con las columnas y los acentos bien. Los textos que empiezan con `=`, `+`, `-` o `@` se prefijan con `'` para evitar inyección de fórmulas.
 
 ### Dependencias

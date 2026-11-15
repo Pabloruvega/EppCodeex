@@ -22,7 +22,19 @@ describe('validación', () => {
 		const datos = leerEntrega(
 			formulario({ empleado: '7 - Ana', articuloId: '2', cantidad: '3', fecha: '2026-02-28', observaciones: '' })
 		);
-		expect(datos).toEqual({ empleado: '7 - Ana', articuloId: 2, cantidad: 3, fecha: '2026-02-28', observaciones: null });
+		expect(datos).toEqual({ empleado: '7 - Ana', items: [{ articuloId: 2, cantidad: 3 }], fecha: '2026-02-28', observaciones: null });
+	});
+
+	it('acepta varios artículos, ignora renglones vacíos y suma los repetidos', () => {
+		const f = formulario({ empleado: '7 - Ana', fecha: '2026-02-28' });
+		for (const [id, cantidad] of [['2', '3'], ['', '1'], ['5', '1'], ['2', '4']]) {
+			f.append('articuloId', id);
+			f.append('cantidad', cantidad);
+		}
+		expect(leerEntrega(f).items).toEqual([
+			{ articuloId: 2, cantidad: 7 },
+			{ articuloId: 5, cantidad: 1 }
+		]);
 	});
 
 	it.each([
