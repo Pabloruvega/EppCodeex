@@ -1,3 +1,5 @@
+import { coincide } from './texto.js';
+
 /** Estado de un artículo según su stock y su mínimo. Se usa en la tabla de stock (etiqueta, orden, totales y filtro) y en la entrega. */
 export type EstadoStock = 'sin-stock' | 'reponer' | 'ok';
 
@@ -44,6 +46,17 @@ export function ordenarPorUrgencia<T extends { stock: number; stockMinimo: numbe
 		.map((a, i) => ({ a, i, u: URGENCIA[estadoStock(a.stock, a.stockMinimo)] }))
 		.sort((x, y) => x.u - y.u || x.i - y.i)
 		.map((x) => x.a);
+}
+
+/** Lo que muestra la página de stock (y lo que se exporta): búsqueda por nombre + filtro por estado, lo urgente primero. */
+export function filtrarStock<T extends { nombre: string; stock: number; stockMinimo: number }>(
+	articulos: T[],
+	busqueda: string,
+	filtro: FiltroStock
+): T[] {
+	return ordenarPorUrgencia(
+		articulos.filter((a) => coincide(a.nombre, busqueda) && pasaFiltro(estadoStock(a.stock, a.stockMinimo), filtro))
+	);
 }
 
 /**

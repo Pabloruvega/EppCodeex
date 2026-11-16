@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { formatearFecha, hoyISO } from '#lib/fechas.js';
 import { movimientosACsv } from '#lib/server/csv.js';
 import { ErrorUsuario } from '#lib/server/errores.js';
-import { movimientosAXlsx } from '#lib/server/excel.js';
+import { entregasAXlsx, movimientosAXlsx, stockAXlsx } from '#lib/server/excel.js';
 import { movimientosAPdf } from '#lib/server/pdf.js';
 import { leerArticuloNuevo, leerEntrega } from '#lib/server/validacion.js';
 
@@ -93,6 +93,20 @@ describe('fechas y exportaciones', () => {
 		const hoja = libro.getWorksheet('Movimientos')!;
 		expect(hoja.getRow(1).values).toEqual([undefined, 'Fecha', 'Tipo', 'Artículo', 'Cantidad', 'Empleado', 'Observaciones']);
 		expect(hoja.getRow(2).values).toEqual([undefined, new Date('2026-11-12T00:00:00Z'), 'Entrega', 'Guantes', 2, 'Ana', '=1+1 😀']);
+	});
+
+	it('el Excel de stock incluye el estado y el de entregas separa legajo y nombre', async () => {
+		const stock = new ExcelJS.Workbook();
+		await stock.xlsx.load((await stockAXlsx([{ nombre: 'Guantes', stock: 3, stockMinimo: 5 }])).buffer);
+		expect(stock.getWorksheet('Stock')!.getRow(2).values).toEqual([undefined, 'Guantes', 3, 5, 'Reponer']);
+
+		const entregas = new ExcelJS.Workbook();
+		await entregas.xlsx.load(
+			(await entregasAXlsx([{ legajo: '1', nombre: 'Ana', fecha: '2026-11-12', articulo: 'Guantes', cantidad: 2, observaciones: null }])).buffer
+		);
+		const hoja = entregas.getWorksheet('Entregas')!;
+		expect(hoja.getRow(1).values).toEqual([undefined, 'Legajo', 'Empleado', 'Fecha', 'Artículo', 'Cantidad', 'Observaciones']);
+		expect(hoja.getRow(2).values).toEqual([undefined, '1', 'Ana', new Date('2026-11-12T00:00:00Z'), 'Guantes', 2]);
 	});
 
 	it('el PDF se genera aunque haya caracteres fuera de Latin-1', async () => {

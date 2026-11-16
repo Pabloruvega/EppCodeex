@@ -2,15 +2,7 @@
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import { SvelteSet } from 'svelte/reactivity';
 	import Aviso from '#lib/Aviso.svelte';
-	import {
-		estadoStock,
-		ordenarPorUrgencia,
-		pasaFiltro,
-		resumenStock,
-		TEXTO_ESTADO,
-		type FiltroStock
-	} from '#lib/estado-stock.js';
-	import { coincide } from '#lib/texto.js';
+	import { estadoStock, filtrarStock, resumenStock, TEXTO_ESTADO, type FiltroStock } from '#lib/estado-stock.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -24,13 +16,7 @@
 	// svelte-ignore state_referenced_locally
 	let busqueda = $state(data.q);
 
-	const articulos = $derived(
-		ordenarPorUrgencia(
-			data.articulos.filter(
-				(a) => coincide(a.nombre, busqueda) && pasaFiltro(estadoStock(a.stock, a.stockMinimo), data.filtro)
-			)
-		)
-	);
+	const articulos = $derived(filtrarStock(data.articulos, busqueda, data.filtro));
 
 	const filtros: { valor: FiltroStock; texto: string }[] = [
 		{ valor: 'todos', texto: 'Todos' },
@@ -45,6 +31,9 @@
 		if (filtro !== 'todos') p.set('estado', filtro);
 		return `?${p}`;
 	};
+
+	/** Búsqueda y filtro actuales, para que las exportaciones bajen lo mismo que se ve. */
+	const consulta = $derived(hrefFiltro(data.filtro));
 
 	// "Guardar" aparece sólo en las filas que se editaron. Sin JS no se puede saber, así que se ve siempre.
 	let conJs = $state(false);
@@ -70,7 +59,18 @@
 </svelte:head>
 
 <main>
-	<h1>Stock</h1>
+	<div class="titulo-con-accion">
+		<h1>Stock</h1>
+		{#if data.articulos.length > 0}
+			<!-- Exporta lo que se ve: misma búsqueda y mismo filtro -->
+			<p class="exportar">
+				Exportar:
+				<a href="/stock.xlsx{consulta}" download>Excel</a>
+				<a href="/stock.pdf{consulta}" download>PDF</a>
+				<a href="/stock.csv{consulta}" download>CSV</a>
+			</p>
+		{/if}
+	</div>
 	{#if data.articulos.length === 0}
 		<p class="tenue">Todavía no hay artículos cargados.</p>
 	{:else}

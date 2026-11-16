@@ -66,6 +66,19 @@ export async function listarEmpleados(db: Db) {
 
 export type FilaMovimiento = Awaited<ReturnType<typeof listarMovimientos>>[number];
 
+/** Lo que necesita una exportación de stock. */
+export type FilaStock = { nombre: string; stock: number; stockMinimo: number };
+
+/** Un renglón de la exportación de entregas, con el empleado ya separado en legajo y nombre. */
+export type FilaEntrega = {
+	legajo: string;
+	nombre: string;
+	fecha: string;
+	articulo: string;
+	cantidad: number;
+	observaciones: string | null;
+};
+
 export type EntregasEmpleado = {
 	/** Nombre tal como se guardó. Es la clave del grupo y lo que usa la búsqueda. */
 	empleado: string;
@@ -94,4 +107,18 @@ export function agruparPorEmpleado(entregas: FilaMovimiento[]): EntregasEmpleado
 	return [...grupos.values()]
 		.map((g) => ({ ...g, totales: g.totales.sort((a, b) => a.articulo.localeCompare(b.articulo, 'es')) }))
 		.sort((a, b) => a.empleado.localeCompare(b.empleado, 'es'));
+}
+
+/** Un renglón por entrega, en el orden de la página: por empleado y, dentro de cada uno, de la más nueva a la más vieja. */
+export function entregasPlanas(empleados: EntregasEmpleado[]): FilaEntrega[] {
+	return empleados.flatMap((e) =>
+		e.detalle.map((d) => ({
+			legajo: e.legajo,
+			nombre: e.nombre,
+			fecha: d.fecha,
+			articulo: d.articulo,
+			cantidad: d.cantidad,
+			observaciones: d.observaciones
+		}))
+	);
 }
