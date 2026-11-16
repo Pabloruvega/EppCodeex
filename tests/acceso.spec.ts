@@ -10,6 +10,12 @@ import { actions as accionesEntrega, load as loadNuevaEntrega } from '../src/rou
 import { GET as exportarCsv } from '../src/routes/movimientos.csv/+server.js';
 import { GET as exportarPdf } from '../src/routes/movimientos.pdf/+server.js';
 import { GET as exportarXlsx } from '../src/routes/movimientos.xlsx/+server.js';
+import { GET as stockCsv } from '../src/routes/stock.csv/+server.js';
+import { GET as stockPdf } from '../src/routes/stock.pdf/+server.js';
+import { GET as stockXlsx } from '../src/routes/stock.xlsx/+server.js';
+import { GET as entregasCsv } from '../src/routes/entregas.csv/+server.js';
+import { GET as entregasPdf } from '../src/routes/entregas.pdf/+server.js';
+import { GET as entregasXlsx } from '../src/routes/entregas.xlsx/+server.js';
 import { crearDbTest } from './db-test.js';
 
 const { db, vaciar } = await crearDbTest();
@@ -92,6 +98,36 @@ describe('acceso sin sesión', () => {
 		['PDF', exportarPdf]
 	])('la exportación a %s responde 404 sin sesión', async (_, exportar) => {
 		await esperarProhibido(Promise.resolve().then(() => exportar(evento(false))), 404);
+	});
+
+	it('las exportaciones de stock y entregas son públicas y no incluyen ingresos', async () => {
+		const stock = await (await stockCsv(evento(false))).text();
+		expect(stock).toContain('Casco;15;1;OK');
+
+		const entregas = await (await entregasCsv(evento(false))).text();
+		expect(entregas).toContain('5;Ana;12/11/2026;Casco;2;');
+		expect(entregas.trim().split('\r\n')).toHaveLength(2);
+
+		for (const [exportar, extension] of [[stockXlsx, '.xlsx'], [entregasXlsx, '.xlsx'], [stockPdf, '.pdf'], [entregasPdf, '.pdf']] as const) {
+			const r = await exportar(evento(false));
+			expect(r.headers.get('Content-Disposition')).toContain(extension);
+			expect((await r.arrayBuffer()).byteLength).toBeGreaterThan(0);
+		}
+	});
+
+	it('las exportaciones respetan la búsqueda y el filtro de la página', async () => {
+		await crearArticulo(db, { nombre: 'Arnés', stock: 0, stockMinimo: 2 });
+		await registrarEntrega(db, { items: [{ articuloId, cantidad: 1 }], fecha: '2026-11-13', empleado: '9 - Beto', observaciones: null });
+		const con = (consulta: string) => ({ ...evento(false), url: new URL(`http://localhost/${consulta}`) });
+
+		const sinStock = await (await stockCsv(con('?estado=sin-stock'))).text();
+		expect(sinStock).toContain('Arnés;0;2;Sin stock');
+		expect(sinStock).not.toContain('Casco');
+		expect(await (await stockCsv(con('?q=arnes'))).text()).not.toContain('Casco');
+
+		const deBeto = await (await entregasCsv(con('?q=beto'))).text();
+		expect(deBeto).toContain('9;Beto;13/11/2026;Casco;1;');
+		expect(deBeto).not.toContain('Ana');
 	});
 });
 

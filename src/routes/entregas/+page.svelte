@@ -10,6 +10,9 @@
 	let busqueda = $state(data.q);
 
 	const empleadosFiltrados = $derived(data.empleados.filter((e) => coincide(e.empleado, busqueda)));
+
+	/** Búsqueda actual, para que las exportaciones bajen lo mismo que se ve. */
+	const consulta = $derived(busqueda.trim() ? `?${new URLSearchParams({ q: busqueda.trim() })}` : '');
 </script>
 
 <svelte:head>
@@ -17,7 +20,18 @@
 </svelte:head>
 
 <main>
-	<h1>Entregas por empleado</h1>
+	<div class="titulo-con-accion">
+		<h1>Entregas por empleado</h1>
+		{#if data.empleados.length > 0}
+			<!-- Exporta lo que se ve: misma búsqueda -->
+			<p class="exportar">
+				Exportar:
+				<a href="/entregas.xlsx{consulta}" download>Excel</a>
+				<a href="/entregas.pdf{consulta}" download>PDF</a>
+				<a href="/entregas.csv{consulta}" download>CSV</a>
+			</p>
+		{/if}
+	</div>
 	<form method="GET" class="en-linea" role="search">
 		<input
 			type="search"
