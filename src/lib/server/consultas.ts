@@ -7,6 +7,7 @@ export function listarArticulos(db: Db) {
 		.select({
 			id: articulos.id,
 			nombre: articulos.nombre,
+			categoria: articulos.categoria,
 			stock: articulos.stock,
 			stockMinimo: articulos.stockMinimo,
 			movimientos: sql<number>`count(${movimientos.id})::int`
@@ -67,12 +68,11 @@ export async function listarEmpleados(db: Db) {
 export type FilaMovimiento = Awaited<ReturnType<typeof listarMovimientos>>[number];
 
 /** Lo que necesita una exportación de stock. */
-export type FilaStock = { nombre: string; stock: number; stockMinimo: number };
+export type FilaStock = { nombre: string; categoria: string | null; stock: number; stockMinimo: number };
 
-/** Un renglón de la exportación de entregas, con el empleado ya separado en legajo y nombre. */
+/** Un renglón de la exportación de entregas. */
 export type FilaEntrega = {
-	legajo: string;
-	nombre: string;
+	empleado: string;
 	fecha: string;
 	articulo: string;
 	cantidad: number;
@@ -113,8 +113,7 @@ export function agruparPorEmpleado(entregas: FilaMovimiento[]): EntregasEmpleado
 export function entregasPlanas(empleados: EntregasEmpleado[]): FilaEntrega[] {
 	return empleados.flatMap((e) =>
 		e.detalle.map((d) => ({
-			legajo: e.legajo,
-			nombre: e.nombre,
+			empleado: e.empleado,
 			fecha: d.fecha,
 			articulo: d.articulo,
 			cantidad: d.cantidad,

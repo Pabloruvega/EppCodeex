@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { listarMovimientos } from '#lib/server/consultas.js';
 import { articulos, movimientos } from '#lib/server/db/schema.js';
 import { ErrorUsuario } from '#lib/server/errores.js';
 import {
@@ -19,6 +20,8 @@ async function stockDe(id: number) {
 	return a?.stock;
 }
 
+const nuevo = { nombre: '', categoria: null, stock: 5, stockMinimo: 0 };
+
 const entrega = (articuloId: number, cantidad: number) => ({
 	items: [{ articuloId, cantidad }],
 	fecha: '2026-11-12',
@@ -35,11 +38,11 @@ describe('lógica de stock', () => {
 
 	beforeEach(async () => {
 		await vaciar();
-		guantes = (await crearArticulo(db, { nombre: 'Guantes', stock: 10, stockMinimo: 2 })).id;
+		guantes = (await crearArticulo(db, { nombre: 'Guantes', categoria: null, stock: 10, stockMinimo: 2 })).id;
 	});
 
 	it('no permite dos artículos con el mismo nombre (sin importar mayúsculas)', async () => {
-		await expect(crearArticulo(db, { nombre: 'guantes', stock: 0, stockMinimo: 0 })).rejects.toThrow(ErrorUsuario);
+		await expect(crearArticulo(db, { nombre: 'guantes', categoria: null, stock: 0, stockMinimo: 0 })).rejects.toThrow(ErrorUsuario);
 	});
 
 	it('un ingreso suma al stock y registra el movimiento con fecha', async () => {
@@ -77,7 +80,7 @@ describe('lógica de stock', () => {
 	});
 
 	it('una entrega con varios artículos descuenta cada uno y registra un movimiento por artículo', async () => {
-		const casco = (await crearArticulo(db, { nombre: 'Casco', stock: 5, stockMinimo: 0 })).id;
+		const casco = (await crearArticulo(db, { nombre: 'Casco', categoria: null, stock: 5, stockMinimo: 0 })).id;
 		const entregados = await registrarEntrega(db, {
 			...entrega(guantes, 3),
 			items: [
@@ -95,7 +98,7 @@ describe('lógica de stock', () => {
 	});
 
 	it('si falta stock de un artículo no se entrega ninguno', async () => {
-		const casco = (await crearArticulo(db, { nombre: 'Casco', stock: 1, stockMinimo: 0 })).id;
+		const casco = (await crearArticulo(db, { nombre: 'Casco', categoria: null, stock: 1, stockMinimo: 0 })).id;
 		const items = [
 			{ articuloId: guantes, cantidad: 2 },
 			{ articuloId: casco, cantidad: 2 }
@@ -136,9 +139,33 @@ describe('lógica de stock', () => {
 	});
 
 	it('editar cambia stock y mínimo sin crear movimientos', async () => {
-		const editado = await editarArticulo(db, { id: guantes, stock: 50, stockMinimo: 8 });
+		const editado = await editarArticulo(db, { id: guantes, nombre: 'Guantes', categoria: null, stock: 50, stockMinimo: 8 });
 		expect(editado).toMatchObject({ stock: 50, stockMinimo: 8 });
 		expect(await db.select().from(movimientos)).toHaveLength(0);
+	});
+
+	it('editar renombra el artículo y su historial muestra el nombre nuevo', async () => {
+		await registrarEntrega(db, entrega(guantes, 1));
+		const editado = await editarArticulo(db, { id: guantes, nombre: 'Guantes de nitrilo', categoria: null, stock: 9, stockMinimo: 2 });
+		expect(editado.nombre).toBe('Guantes de nitrilo');
+		expect(await listarMovimientos(db)).toMatchObject([{ articulo: 'Guantes de nitrilo' }]);
+	});
+
+	it('no se puede renombrar con el nombre de otro artículo, pero sí cambiarle mayúsculas al propio', async () => {
+		await crearArticulo(db, { ...nuevo, nombre: 'Casco' });
+		await expect(editarArticulo(db, { id: guantes, nombre: 'casco', categoria: null, stock: 10, stockMinimo: 2 })).rejects.toThrow(
+			/Ya existe un artículo llamado "casco"/
+		);
+		const editado = await editarArticulo(db, { id: guantes, nombre: 'GUANTES', categoria: null, stock: 10, stockMinimo: 2 });
+		expect(editado.nombre).toBe('GUANTES');
+	});
+
+	it('una categoría escrita con otras mayúsculas usa la que ya existe', async () => {
+		await crearArticulo(db, { ...nuevo, nombre: 'Casco', categoria: 'Protección craneana' });
+		const anteojos = await crearArticulo(db, { ...nuevo, nombre: 'Anteojos', categoria: 'protección CRANEANA' });
+		expect(anteojos.categoria).toBe('Protección craneana');
+		const editado = await editarArticulo(db, { id: guantes, nombre: 'Guantes', categoria: 'PROTECCIÓN craneana', stock: 10, stockMinimo: 2 });
+		expect(editado.categoria).toBe('Protección craneana');
 	});
 
 	it('borrar un artículo borra sus movimientos', async () => {

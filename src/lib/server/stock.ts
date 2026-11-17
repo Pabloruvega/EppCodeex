@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte, ne, sql } from 'drizzle-orm';
 import { hoyISO } from '#lib/fechas.js';
 import type { Db } from './db/index.js';
 import { articulos, movimientos, type Articulo, type Movimiento } from './db/schema.js';
@@ -7,21 +7,48 @@ import { ErrorUsuario } from './errores.js';
 // Toda operación que toca stock + movimiento corre en una transacción.
 // Las restas usan `WHERE stock >= n` para que dos cargas simultáneas no dejen stock negativo.
 
-export async function crearArticulo(db: Db, datos: { nombre: string; stock: number; stockMinimo: number }) {
+/** Falla si otro artículo (distinto de `excepto`) ya usa ese nombre, sin importar mayúsculas. */
+async function verificarNombreLibre(db: Db, nombre: string, excepto?: number) {
 	const [existente] = await db
 		.select({ id: articulos.id })
 		.from(articulos)
-		.where(sql`lower(${articulos.nombre}) = lower(${datos.nombre})`);
-	if (existente) throw new ErrorUsuario(`Ya existe un artículo llamado "${datos.nombre}".`);
+		.where(and(sql`lower(${articulos.nombre}) = lower(${nombre})`, excepto ? ne(articulos.id, excepto) : undefined));
+	if (existente) throw new ErrorUsuario(`Ya existe un artículo llamado "${nombre}".`);
+}
 
-	const [creado] = await db.insert(articulos).values(datos).returning();
+/** Si ya hay una categoría igual escrita con otras mayúsculas ("guantes" vs "Guantes"), usa esa: así no se duplican. */
+async function categoriaExistente(db: Db, categoria: string | null) {
+	if (!categoria) return null;
+	const [existente] = await db
+		.selectDistinct({ categoria: articulos.categoria })
+		.from(articulos)
+		.where(sql`lower(${articulos.categoria}) = lower(${categoria})`)
+		.limit(1);
+	return existente?.categoria ?? categoria;
+}
+
+type DatosArticulo = { nombre: string; categoria: string | null; stock: number; stockMinimo: number };
+
+export async function crearArticulo(db: Db, datos: DatosArticulo) {
+	await verificarNombreLibre(db, datos.nombre);
+	const [creado] = await db
+		.insert(articulos)
+		.values({ ...datos, categoria: await categoriaExistente(db, datos.categoria) })
+		.returning();
 	return creado;
 }
 
-export async function editarArticulo(db: Db, datos: { id: number; stock: number; stockMinimo: number }) {
+/** Cambia nombre, categoría, stock y mínimo. Los movimientos apuntan al id, así que el historial pasa a mostrar el nombre nuevo. */
+export async function editarArticulo(db: Db, datos: DatosArticulo & { id: number }) {
+	await verificarNombreLibre(db, datos.nombre, datos.id);
 	const [editado] = await db
 		.update(articulos)
-		.set({ stock: datos.stock, stockMinimo: datos.stockMinimo })
+		.set({
+			nombre: datos.nombre,
+			categoria: await categoriaExistente(db, datos.categoria),
+			stock: datos.stock,
+			stockMinimo: datos.stockMinimo
+		})
 		.where(eq(articulos.id, datos.id))
 		.returning();
 	if (!editado) throw new ErrorUsuario('El artículo no existe.');

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import Aviso from '#lib/Aviso.svelte';
-	import { despuesDeEntregar } from '#lib/estado-stock.js';
+	import { agruparPorCategoria, categoriaDe, compararCategorias, despuesDeEntregar } from '#lib/estado-stock.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -23,6 +23,12 @@
 	let empleado = $state(form?.valores?.empleado ?? '');
 
 	const elegidos = $derived(new Set(filas.map((f) => f.articuloId)));
+	/** Artículos agrupados por categoría (orden alfabético dentro de cada una) para el desplegable. */
+	const porCategoria = $derived(
+		agruparPorCategoria(
+			[...data.articulos].sort((x, y) => compararCategorias(categoriaDe(x), categoriaDe(y)) || x.nombre.localeCompare(y.nombre, 'es'))
+		)
+	);
 	const articuloDe = (articuloId: string) => data.articulos.find((a) => String(a.id) === articuloId);
 
 	/** Cómo queda el artículo del renglón después de la entrega; null mientras falte elegirlo o poner la cantidad. */
@@ -81,12 +87,22 @@
 				<div class="renglon">
 					<select name="articuloId" aria-label="Artículo {i + 1}" required bind:value={fila.articuloId}>
 						<option value="">Elegí…</option>
-						{#each data.articulos as a (a.id)}
-							{@const id = String(a.id)}
-							<option value={id} disabled={a.stock === 0 || (elegidos.has(id) && fila.articuloId !== id)}>
-								{a.nombre} (stock {a.stock})
-							</option>
-						{/each}
+						{#snippet opciones(articulos: typeof data.articulos)}
+							{#each articulos as a (a.id)}
+								{@const id = String(a.id)}
+								<option value={id} disabled={a.stock === 0 || (elegidos.has(id) && fila.articuloId !== id)}>
+									{a.nombre} (stock {a.stock})
+								</option>
+							{/each}
+						{/snippet}
+						<!-- Con una sola categoría (o ninguna cargada) no hace falta agrupar -->
+						{#if porCategoria.length > 1}
+							{#each porCategoria as g (g.categoria)}
+								<optgroup label={g.categoria}>{@render opciones(g.articulos)}</optgroup>
+							{/each}
+						{:else}
+							{@render opciones(porCategoria[0]?.articulos ?? [])}
+						{/if}
 					</select>
 					<input
 						name="cantidad"

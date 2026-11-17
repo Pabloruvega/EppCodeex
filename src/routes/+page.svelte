@@ -2,7 +2,16 @@
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import { SvelteSet } from 'svelte/reactivity';
 	import Aviso from '#lib/Aviso.svelte';
-	import { estadoStock, filtrarStock, resumenStock, TEXTO_ESTADO, type FiltroStock } from '#lib/estado-stock.js';
+	import {
+		agruparPorCategoria,
+		categoriasDe,
+		estadoStock,
+		filtrarStock,
+		resumenStock,
+		SIN_CATEGORIA,
+		TEXTO_ESTADO,
+		type FiltroStock
+	} from '#lib/estado-stock.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -16,7 +25,12 @@
 	// svelte-ignore state_referenced_locally
 	let busqueda = $state(data.q);
 
-	const articulos = $derived(filtrarStock(data.articulos, busqueda, data.filtro));
+	const articulos = $derived(filtrarStock(data.articulos, busqueda, data.filtro, data.categoria));
+	const grupos = $derived(agruparPorCategoria(articulos));
+	const categorias = $derived(categoriasDe(data.articulos));
+	/** Para autocompletar al escribir una categoría: las que ya existen. */
+	const categoriasConNombre = $derived(categorias.filter((c) => c !== SIN_CATEGORIA));
+	const columnas = $derived(data.admin ? 5 : 4);
 
 	const filtros: { valor: FiltroStock; texto: string }[] = [
 		{ valor: 'todos', texto: 'Todos' },
@@ -24,11 +38,12 @@
 		{ valor: 'sin-stock', texto: 'Sin stock' }
 	];
 
-	/** Enlace a un filtro conservando lo que se está buscando. */
+	/** Enlace a un filtro conservando lo que se está buscando y la categoría elegida. */
 	const hrefFiltro = (filtro: FiltroStock) => {
 		const p = new URLSearchParams();
 		if (busqueda.trim()) p.set('q', busqueda.trim());
 		if (filtro !== 'todos') p.set('estado', filtro);
+		if (data.categoria) p.set('categoria', data.categoria);
 		return `?${p}`;
 	};
 
@@ -94,6 +109,18 @@
 			<form method="GET" class="buscar" role="search">
 				<input type="search" name="q" placeholder="Buscar artículo" aria-label="Buscar artículo" bind:value={busqueda} />
 				{#if data.filtro !== 'todos'}<input type="hidden" name="estado" value={data.filtro} />{/if}
+				{#if categorias.length > 1 || data.categoria}
+					<!-- Con JS filtra al elegir; sin JS se aplica con "Buscar" -->
+					<select
+						name="categoria"
+						aria-label="Filtrar por categoría"
+						value={data.categoria}
+						onchange={(e) => e.currentTarget.form?.requestSubmit()}
+					>
+						<option value="">Todas las categorías</option>
+						{#each categorias as c (c)}<option value={c}>{c}</option>{/each}
+					</select>
+				{/if}
 				<button class="secundario">Buscar</button>
 			</form>
 			<nav class="segmento" aria-label="Filtrar por estado">
@@ -123,11 +150,32 @@
 					{#if data.admin}<th><span class="oculto">Acciones</span></th>{/if}
 				</tr>
 			</thead>
+			{#each grupos as g (g.categoria)}
 			<tbody>
-				{#each articulos as a (a.id)}
+				<tr class="grupo">
+					<th colspan={columnas} scope="colgroup">
+						{g.categoria} <span class="tenue">· {g.articulos.length}</span>
+					</th>
+				</tr>
+				{#each g.articulos as a (a.id)}
 					{@const estado = estadoStock(a.stock, a.stockMinimo)}
 					<tr>
-						<td data-label="Artículo" class:articulo-urgente={estado !== 'ok'}>{a.nombre}</td>
+						<td data-label="Artículo" class:articulo-urgente={estado !== 'ok'}>
+							{#if data.admin}
+								<input
+									class="celda nombre"
+									form="editar-{a.id}"
+									name="nombre"
+									maxlength="100"
+									value={a.nombre}
+									aria-label="Nombre de {a.nombre}"
+									required
+									oninput={() => editados.add(a.id)}
+								/>
+							{:else}
+								{a.nombre}
+							{/if}
+						</td>
 						<td data-label="Stock" class="num">
 							{#if data.admin}
 								<input
@@ -189,6 +237,19 @@
 								</details>
 								<details>
 									<summary class="accion mas" aria-label="Más acciones para {a.nombre}" title="Más acciones">⋯</summary>
+									<label class="cambiar-categoria">
+										Categoría
+										<input
+											form="editar-{a.id}"
+											name="categoria"
+											list="lista-categorias"
+											maxlength="50"
+											placeholder={SIN_CATEGORIA}
+											value={a.categoria ?? ''}
+											oninput={() => editados.add(a.id)}
+										/>
+										<small class="tenue">Se aplica con "Guardar".</small>
+									</label>
 									<form method="POST" action="?/borrarArticulo" use:enhance class="confirmacion">
 										<input type="hidden" name="id" value={a.id} />
 										<p>
@@ -203,7 +264,13 @@
 					</tr>
 				{/each}
 			</tbody>
+			{/each}
 		</table>
+	{/if}
+	{#if data.admin}
+		<datalist id="lista-categorias">
+			{#each categoriasConNombre as c (c)}<option value={c}></option>{/each}
+		</datalist>
 	{/if}
 	<Aviso resultado={aviso('editarArticulo', 'ingreso', 'borrarArticulo')} />
 
@@ -212,6 +279,15 @@
 			<summary>Nuevo artículo</summary>
 			<form method="POST" action="?/crearArticulo" use:enhance class="en-linea">
 				<label>Nombre <input name="nombre" maxlength="100" required value={valores.nombre ?? ''} /></label>
+				<label
+					>Categoría <input
+						name="categoria"
+						list="lista-categorias"
+						maxlength="50"
+						placeholder={SIN_CATEGORIA}
+						value={valores.categoria ?? (data.categoria === SIN_CATEGORIA ? '' : data.categoria)}
+					/></label
+				>
 				<label>Stock inicial <input name="stock" type="number" min="0" step="1" inputmode="numeric" required value={valores.stock ?? '0'} /></label>
 				<label>Mínimo <input name="stockMinimo" type="number" min="0" step="1" inputmode="numeric" placeholder="0" value={valores.stockMinimo ?? ''} /></label>
 				<button>Crear</button>

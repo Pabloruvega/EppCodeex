@@ -11,7 +11,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		articulos: await listarArticulos(locals.db),
 		// Búsqueda y filtro por estado van en la URL: funcionan sin JS y se pueden compartir como enlace.
 		q: url.searchParams.get('q')?.trim() ?? '',
-		filtro: leerFiltro(url.searchParams.get('estado'))
+		filtro: leerFiltro(url.searchParams.get('estado')),
+		categoria: url.searchParams.get('categoria') ?? ''
 	};
 };
 

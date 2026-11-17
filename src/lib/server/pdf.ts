@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit';
-import { estadoStock, TEXTO_ESTADO } from '#lib/estado-stock.js';
+import { categoriaDe, estadoStock, TEXTO_ESTADO } from '#lib/estado-stock.js';
 import { formatearFecha } from '#lib/fechas.js';
 import type { FilaEntrega, FilaMovimiento, FilaStock } from './consultas.js';
 
@@ -84,12 +84,14 @@ export function stockAPdf(filas: FilaStock[], hoy: string) {
 		hoy,
 		unidad: ['artículo', 'artículos'],
 		columnas: [
+			{ titulo: 'Categoría', ancho: 110 },
 			{ titulo: 'Artículo', ancho: '*' },
-			{ titulo: 'Stock', ancho: 60, derecha: true },
-			{ titulo: 'Mínimo', ancho: 60, derecha: true },
-			{ titulo: 'Estado', ancho: 70 }
+			{ titulo: 'Stock', ancho: 50, derecha: true },
+			{ titulo: 'Mínimo', ancho: 50, derecha: true },
+			{ titulo: 'Estado', ancho: 60 }
 		],
 		filas: filas.map((a) => [
+			categoriaDe(a),
 			a.nombre,
 			String(a.stock),
 			String(a.stockMinimo),
@@ -106,7 +108,6 @@ export function entregasAPdf(filas: FilaEntrega[], hoy: string) {
 		unidad: ['entrega', 'entregas'],
 		apaisado: true,
 		columnas: [
-			{ titulo: 'Legajo', ancho: 52 },
 			{ titulo: 'Empleado', ancho: '*' },
 			{ titulo: 'Fecha', ancho: 62 },
 			{ titulo: 'Artículo', ancho: '*' },
@@ -114,8 +115,7 @@ export function entregasAPdf(filas: FilaEntrega[], hoy: string) {
 			{ titulo: 'Observaciones', ancho: '*' }
 		],
 		filas: filas.map((f) => [
-			f.legajo,
-			f.nombre,
+			f.empleado,
 			formatearFecha(f.fecha),
 			f.articulo,
 			String(f.cantidad),

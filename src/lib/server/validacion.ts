@@ -1,4 +1,6 @@
+import { SIN_CATEGORIA } from '#lib/estado-stock.js';
 import { esFechaISOValida } from '#lib/fechas.js';
+import { normalizar } from '#lib/texto.js';
 import { ErrorUsuario } from './errores.js';
 
 const MAX_CANTIDAD = 100_000;
@@ -27,12 +29,25 @@ export function leerId(form: FormData, campo = 'id'): number {
 	return entero(form, campo, 'Identificador', { min: 1 });
 }
 
-export function leerArticuloNuevo(form: FormData) {
+function leerNombre(form: FormData): string {
 	const nombre = texto(form, 'nombre').replace(/\s+/g, ' ');
 	if (!nombre) throw new ErrorUsuario('Ingresá el nombre del artículo.');
 	if (nombre.length > 100) throw new ErrorUsuario('El nombre es demasiado largo (máximo 100 caracteres).');
+	return nombre;
+}
+
+/** Vacío o "Sin categoría" → null. */
+export function leerCategoria(form: FormData): string | null {
+	const categoria = texto(form, 'categoria').replace(/\s+/g, ' ');
+	if (!categoria || normalizar(categoria) === normalizar(SIN_CATEGORIA)) return null;
+	if (categoria.length > 50) throw new ErrorUsuario('La categoría es demasiado larga (máximo 50 caracteres).');
+	return categoria;
+}
+
+export function leerArticuloNuevo(form: FormData) {
 	return {
-		nombre,
+		nombre: leerNombre(form),
+		categoria: leerCategoria(form),
 		stock: entero(form, 'stock', 'Stock inicial', { min: 0 }),
 		stockMinimo: entero(form, 'stockMinimo', 'Stock mínimo', { min: 0, opcional: true })
 	};
@@ -41,6 +56,8 @@ export function leerArticuloNuevo(form: FormData) {
 export function leerEdicionArticulo(form: FormData) {
 	return {
 		id: leerId(form),
+		nombre: leerNombre(form),
+		categoria: leerCategoria(form),
 		stock: entero(form, 'stock', 'Stock', { min: 0 }),
 		stockMinimo: entero(form, 'stockMinimo', 'Stock mínimo', { min: 0 })
 	};

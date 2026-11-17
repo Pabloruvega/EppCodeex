@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { estadoStock, TEXTO_ESTADO } from '#lib/estado-stock.js';
+import { categoriaDe, estadoStock, TEXTO_ESTADO } from '#lib/estado-stock.js';
 import type { FilaEntrega, FilaMovimiento, FilaStock } from './consultas.js';
 
 /** Medianoche UTC: Excel no maneja zonas horarias y así el día no se corre. */
@@ -49,12 +49,14 @@ export function stockAXlsx(filas: FilaStock[]) {
 	return aXlsx(
 		'Stock',
 		[
+			{ header: 'Categoría', key: 'categoria', width: 20 },
 			{ header: 'Artículo', key: 'nombre', width: 36 },
 			{ header: 'Stock', key: 'stock', width: 10 },
 			{ header: 'Mínimo', key: 'stockMinimo', width: 10 },
 			{ header: 'Estado', key: 'estado', width: 12 }
 		],
 		filas.map((a) => ({
+			categoria: categoriaDe(a),
 			nombre: a.nombre,
 			stock: a.stock,
 			stockMinimo: a.stockMinimo,
@@ -67,8 +69,7 @@ export function entregasAXlsx(filas: FilaEntrega[]) {
 	return aXlsx(
 		'Entregas',
 		[
-			{ header: 'Legajo', key: 'legajo', width: 10 },
-			{ header: 'Empleado', key: 'nombre', width: 32 },
+			{ header: 'Empleado', key: 'empleado', width: 32 },
 			columnaFecha,
 			{ header: 'Artículo', key: 'articulo', width: 32 },
 			{ header: 'Cantidad', key: 'cantidad', width: 10 },

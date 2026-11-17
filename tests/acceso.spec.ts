@@ -49,7 +49,7 @@ describe('acceso sin sesión', () => {
 
 	beforeEach(async () => {
 		await vaciar();
-		articuloId = (await crearArticulo(db, { nombre: 'Casco', stock: 10, stockMinimo: 1 })).id;
+		articuloId = (await crearArticulo(db, { nombre: 'Casco', categoria: null, stock: 10, stockMinimo: 1 })).id;
 		await registrarIngreso(db, { articuloId, cantidad: 7 });
 		movimientoId = (
 			await registrarEntrega(db, { items: [{ articuloId, cantidad: 2 }], fecha: '2026-11-12', empleado: 'Ana', observaciones: null })
@@ -58,7 +58,7 @@ describe('acceso sin sesión', () => {
 
 	const intentos: [keyof typeof actions, () => Record<string, string>][] = [
 		['crearArticulo', () => ({ nombre: 'Botines', stock: '3' })],
-		['editarArticulo', () => ({ id: String(articuloId), stock: '0', stockMinimo: '0' })],
+		['editarArticulo', () => ({ id: String(articuloId), nombre: 'Casco', stock: '0', stockMinimo: '0' })],
 		['borrarArticulo', () => ({ id: String(articuloId) })],
 		['ingreso', () => ({ articuloId: String(articuloId), cantidad: '5' })],
 		['entrega', () => ({ articuloId: String(articuloId), cantidad: '1', fecha: '2026-11-12', empleado: 'X' })],
@@ -105,7 +105,7 @@ describe('acceso sin sesión', () => {
 		expect(stock).toContain('Casco;15;1;OK');
 
 		const entregas = await (await entregasCsv(evento(false))).text();
-		expect(entregas).toContain('5;Ana;12/11/2026;Casco;2;');
+		expect(entregas).toContain('Ana;12/11/2026;Casco;2;');
 		expect(entregas.trim().split('\r\n')).toHaveLength(2);
 
 		for (const [exportar, extension] of [[stockXlsx, '.xlsx'], [entregasXlsx, '.xlsx'], [stockPdf, '.pdf'], [entregasPdf, '.pdf']] as const) {
@@ -116,8 +116,8 @@ describe('acceso sin sesión', () => {
 	});
 
 	it('las exportaciones respetan la búsqueda y el filtro de la página', async () => {
-		await crearArticulo(db, { nombre: 'Arnés', stock: 0, stockMinimo: 2 });
-		await registrarEntrega(db, { items: [{ articuloId, cantidad: 1 }], fecha: '2026-11-13', empleado: '9 - Beto', observaciones: null });
+		await crearArticulo(db, { nombre: 'Arnés', categoria: null, stock: 0, stockMinimo: 2 });
+		await registrarEntrega(db, { items: [{ articuloId, cantidad: 1 }], fecha: '2026-11-13', empleado: 'Beto', observaciones: null });
 		const con = (consulta: string) => ({ ...evento(false), url: new URL(`http://localhost/${consulta}`) });
 
 		const sinStock = await (await stockCsv(con('?estado=sin-stock'))).text();
@@ -126,7 +126,7 @@ describe('acceso sin sesión', () => {
 		expect(await (await stockCsv(con('?q=arnes'))).text()).not.toContain('Casco');
 
 		const deBeto = await (await entregasCsv(con('?q=beto'))).text();
-		expect(deBeto).toContain('9;Beto;13/11/2026;Casco;1;');
+		expect(deBeto).toContain('Beto;13/11/2026;Casco;1;');
 		expect(deBeto).not.toContain('Ana');
 	});
 });
@@ -154,7 +154,7 @@ describe('acceso con sesión de admin', () => {
 	});
 
 	it('una entrega sin stock suficiente devuelve 400 con el mensaje', async () => {
-		const { id } = await crearArticulo(db, { nombre: 'Antiparras', stock: 1, stockMinimo: 0 });
+		const { id } = await crearArticulo(db, { nombre: 'Antiparras', categoria: null, stock: 1, stockMinimo: 0 });
 		const r = await actions.entrega(
 			evento(true, { articuloId: String(id), cantidad: '2', fecha: '2026-11-12', empleado: 'Ana' })
 		);
@@ -162,8 +162,8 @@ describe('acceso con sesión de admin', () => {
 	});
 
 	it('registra una entrega de varios artículos', async () => {
-		const casco = await crearArticulo(db, { nombre: 'Casco', stock: 4, stockMinimo: 0 });
-		const guantes = await crearArticulo(db, { nombre: 'Guantes', stock: 9, stockMinimo: 0 });
+		const casco = await crearArticulo(db, { nombre: 'Casco', categoria: null, stock: 4, stockMinimo: 0 });
+		const guantes = await crearArticulo(db, { nombre: 'Guantes', categoria: null, stock: 9, stockMinimo: 0 });
 		const e = evento(true);
 		const body = new FormData();
 		for (const [k, v] of [['empleado', 'Ana'], ['fecha', '2026-11-12'], ['articuloId', String(casco.id)], ['cantidad', '1'], ['articuloId', String(guantes.id)], ['cantidad', '3']]) {

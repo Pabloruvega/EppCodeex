@@ -21,12 +21,13 @@ export function descarga(cuerpo: BodyInit, nombre: string, formato: keyof typeof
 	});
 }
 
-/** El stock tal como se ve en la página: mismos ?q= y ?estado=, mismo orden. */
+/** El stock tal como se ve en la página: mismos ?q=, ?estado= y ?categoria=, mismo orden. */
 export async function stockParaExportar(db: Db, url: URL) {
 	return filtrarStock(
 		await listarArticulos(db),
 		url.searchParams.get('q') ?? '',
-		leerFiltro(url.searchParams.get('estado'))
+		leerFiltro(url.searchParams.get('estado')),
+		url.searchParams.get('categoria') ?? ''
 	);
 }
 

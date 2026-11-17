@@ -6,6 +6,8 @@ export const articulos = pgTable(
 	{
 		id: serial('id').primaryKey(),
 		nombre: text('nombre').notNull().unique(),
+		// null = "Sin categoría"
+		categoria: text('categoria'),
 		stock: integer('stock').notNull().default(0),
 		stockMinimo: integer('stock_minimo').notNull().default(0),
 		creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow()
