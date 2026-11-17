@@ -5,7 +5,7 @@ import { movimientosACsv } from '#lib/server/csv.js';
 import { ErrorUsuario } from '#lib/server/errores.js';
 import { entregasAXlsx, movimientosAXlsx, stockAXlsx } from '#lib/server/excel.js';
 import { movimientosAPdf } from '#lib/server/pdf.js';
-import { leerArticuloNuevo, leerEntrega, normalizarEmpleado } from '#lib/server/validacion.js';
+import { leerArticuloNuevo, leerEdicionArticulo, leerEntrega, normalizarEmpleado } from '#lib/server/validacion.js';
 
 const formulario = (campos: Record<string, string>) => {
 	const f = new FormData();
@@ -55,9 +55,21 @@ describe('validación', () => {
 	it('el stock mínimo es opcional al crear un artículo', () => {
 		expect(leerArticuloNuevo(formulario({ nombre: ' Casco ', stock: '4', stockMinimo: '' }))).toEqual({
 			nombre: 'Casco',
+			categoria: null,
 			stock: 4,
 			stockMinimo: 0
 		});
+	});
+
+	it('la categoría se normaliza y "Sin categoría" o vacío quedan sin categoría', () => {
+		const con = (categoria: string) => leerArticuloNuevo(formulario({ nombre: 'Casco', stock: '1', categoria })).categoria;
+		expect(con('  Protección   craneana ')).toBe('Protección craneana');
+		expect(con('')).toBeNull();
+		expect(con('sin categoria')).toBeNull();
+	});
+
+	it('editar un artículo exige nombre', () => {
+		expect(() => leerEdicionArticulo(formulario({ id: '1', nombre: ' ', stock: '1', stockMinimo: '0' }))).toThrow(ErrorUsuario);
 	});
 });
 
@@ -99,8 +111,8 @@ describe('fechas y exportaciones', () => {
 
 	it('el Excel de stock incluye el estado y el de entregas separa legajo y nombre', async () => {
 		const stock = new ExcelJS.Workbook();
-		await stock.xlsx.load((await stockAXlsx([{ nombre: 'Guantes', stock: 3, stockMinimo: 5 }])).buffer);
-		expect(stock.getWorksheet('Stock')!.getRow(2).values).toEqual([undefined, 'Guantes', 3, 5, 'Reponer']);
+		await stock.xlsx.load((await stockAXlsx([{ nombre: 'Guantes', categoria: 'Manos', stock: 3, stockMinimo: 5 }])).buffer);
+		expect(stock.getWorksheet('Stock')!.getRow(2).values).toEqual([undefined, 'Manos', 'Guantes', 3, 5, 'Reponer']);
 
 		const entregas = new ExcelJS.Workbook();
 		await entregas.xlsx.load(

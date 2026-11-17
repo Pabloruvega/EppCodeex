@@ -625,8 +625,41 @@ input.celda:focus {
 	border-color: var(--borde-control);
 }
 
-.articulo-urgente {
+.articulo-urgente,
+.articulo-urgente input.nombre {
 	font-weight: 600;
+}
+
+/* El nombre se edita en la misma celda: ocupa todo el ancho de la columna */
+input.celda.nombre {
+	width: 100%;
+	min-width: 10rem;
+}
+
+/* Encabezado de cada categoría en la tabla de stock */
+tr.grupo th {
+	padding-top: 0.9rem;
+	background: var(--fondo);
+	color: var(--texto);
+	font-size: 0.95rem;
+	font-weight: 700;
+}
+
+tr.grupo .tenue {
+	font-weight: 400;
+}
+
+.filtros-stock .buscar select {
+	width: auto;
+	flex: 0 1 12rem;
+}
+
+/* Cambiar categoría desde el menú ⋯ */
+.cambiar-categoria {
+	display: grid;
+	gap: 0.25rem;
+	margin-block: 0.5rem;
+	font-size: 0.9rem;
 }
 
 /* Acciones de cada fila: "Guardar" sólo si se editó, "+ Ingreso" y el menú ⋯ con Eliminar */
@@ -870,6 +903,23 @@ details.empleado[open] {
 		content: attr(data-label);
 		color: var(--tenue);
 		font-size: 0.85rem;
+	}
+	/* En el celular la categoría es un título entre tarjetas, no una tarjeta */
+	tr.grupo {
+		background: none;
+		border: 0;
+		margin: 0.75rem 0 0.25rem;
+		padding: 0;
+	}
+	tr.grupo th {
+		display: block;
+		padding: 0;
+		border: 0;
+		background: none;
+	}
+	input.celda.nombre {
+		min-width: 0;
+		flex: 1;
 	}
 	.num {
 		text-align: right;

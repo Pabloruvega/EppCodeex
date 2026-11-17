@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+	agruparPorCategoria,
+	categoriasDe,
 	despuesDeEntregar,
 	estadoStock,
+	filtrarStock,
 	leerFiltro,
 	ordenarPorUrgencia,
 	pasaFiltro,
-	resumenStock
+	resumenStock,
+	SIN_CATEGORIA
 } from '#lib/estado-stock.js';
 import { coincide } from '#lib/texto.js';
 
@@ -97,6 +101,34 @@ describe('ordenarPorUrgencia', () => {
 		];
 		ordenarPorUrgencia(articulos);
 		expect(articulos[0].stock).toBe(10);
+	});
+});
+
+describe('categorías', () => {
+	const articulos = [
+		{ nombre: 'Casco', categoria: 'Cabeza', stock: 24, stockMinimo: 10 },
+		{ nombre: 'Botín', categoria: null, stock: 5, stockMinimo: 1 },
+		{ nombre: 'Guantes', categoria: 'Manos', stock: 6, stockMinimo: 20 },
+		{ nombre: 'Barbijo', categoria: 'Cabeza', stock: 0, stockMinimo: 2 }
+	];
+
+	it('ordena por categoría (sin categoría al final) y dentro de cada una lo urgente primero', () => {
+		expect(filtrarStock(articulos, '', 'todos').map((a) => a.nombre)).toEqual(['Barbijo', 'Casco', 'Guantes', 'Botín']);
+	});
+
+	it('filtra por categoría, incluida "Sin categoría"', () => {
+		expect(filtrarStock(articulos, '', 'todos', 'Cabeza').map((a) => a.nombre)).toEqual(['Barbijo', 'Casco']);
+		expect(filtrarStock(articulos, '', 'todos', SIN_CATEGORIA).map((a) => a.nombre)).toEqual(['Botín']);
+	});
+
+	it('agrupa y lista las categorías existentes', () => {
+		const grupos = agruparPorCategoria(filtrarStock(articulos, '', 'todos'));
+		expect(grupos.map((g) => [g.categoria, g.articulos.length])).toEqual([
+			['Cabeza', 2],
+			['Manos', 1],
+			[SIN_CATEGORIA, 1]
+		]);
+		expect(categoriasDe(articulos)).toEqual(['Cabeza', 'Manos', SIN_CATEGORIA]);
 	});
 });
 

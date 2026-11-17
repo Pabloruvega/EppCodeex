@@ -8,6 +8,7 @@ export function listarArticulos(db: Db) {
 		.select({
 			id: articulos.id,
 			nombre: articulos.nombre,
+			categoria: articulos.categoria,
 			stock: articulos.stock,
 			stockMinimo: articulos.stockMinimo,
 			movimientos: sql<number>`count(${movimientos.id})::int`
@@ -68,7 +69,7 @@ export async function listarEmpleados(db: Db) {
 export type FilaMovimiento = Awaited<ReturnType<typeof listarMovimientos>>[number];
 
 /** Lo que necesita una exportación de stock. */
-export type FilaStock = { nombre: string; stock: number; stockMinimo: number };
+export type FilaStock = { nombre: string; categoria: string | null; stock: number; stockMinimo: number };
 
 /** Un renglón de la exportación de entregas, con el empleado ya separado en legajo y nombre. */
 export type FilaEntrega = {

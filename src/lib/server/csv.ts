@@ -1,4 +1,4 @@
-import { estadoStock, TEXTO_ESTADO } from '#lib/estado-stock.js';
+import { categoriaDe, estadoStock, TEXTO_ESTADO } from '#lib/estado-stock.js';
 import { formatearFecha } from '#lib/fechas.js';
 import type { FilaEntrega, FilaMovimiento, FilaStock } from './consultas.js';
 
@@ -31,8 +31,8 @@ export function movimientosACsv(filas: FilaMovimiento[]): string {
 
 export function stockACsv(filas: FilaStock[]): string {
 	return aCsv(
-		['Artículo', 'Stock', 'Mínimo', 'Estado'],
-		filas.map((a) => [a.nombre, a.stock, a.stockMinimo, TEXTO_ESTADO[estadoStock(a.stock, a.stockMinimo)]])
+		['Categoría', 'Artículo', 'Stock', 'Mínimo', 'Estado'],
+		filas.map((a) => [categoriaDe(a), a.nombre, a.stock, a.stockMinimo, TEXTO_ESTADO[estadoStock(a.stock, a.stockMinimo)]])
 	);
 }
 
