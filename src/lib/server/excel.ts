@@ -69,8 +69,7 @@ export function entregasAXlsx(filas: FilaEntrega[]) {
 	return aXlsx(
 		'Entregas',
 		[
-			{ header: 'Legajo', key: 'legajo', width: 10 },
-			{ header: 'Empleado', key: 'nombre', width: 32 },
+			{ header: 'Empleado', key: 'empleado', width: 32 },
 			columnaFecha,
 			{ header: 'Artículo', key: 'articulo', width: 32 },
 			{ header: 'Cantidad', key: 'cantidad', width: 10 },

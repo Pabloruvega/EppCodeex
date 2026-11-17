@@ -38,7 +38,7 @@ export function stockACsv(filas: FilaStock[]): string {
 
 export function entregasACsv(filas: FilaEntrega[]): string {
 	return aCsv(
-		['Legajo', 'Empleado', 'Fecha', 'Artículo', 'Cantidad', 'Observaciones'],
-		filas.map((f) => [f.legajo, f.nombre, formatearFecha(f.fecha), f.articulo, f.cantidad, f.observaciones])
+		['Empleado', 'Fecha', 'Artículo', 'Cantidad', 'Observaciones'],
+		filas.map((f) => [f.empleado, formatearFecha(f.fecha), f.articulo, f.cantidad, f.observaciones])
 	);
 }

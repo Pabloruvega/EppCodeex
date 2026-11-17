@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import Aviso from '#lib/Aviso.svelte';
-	import { separarEmpleado } from '#lib/empleado.js';
 	import { agruparPorCategoria, categoriaDe, compararCategorias, despuesDeEntregar } from '#lib/estado-stock.js';
 	import type { PageProps } from './$types';
 

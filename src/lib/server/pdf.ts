@@ -108,7 +108,6 @@ export function entregasAPdf(filas: FilaEntrega[], hoy: string) {
 		unidad: ['entrega', 'entregas'],
 		apaisado: true,
 		columnas: [
-			{ titulo: 'Legajo', ancho: 52 },
 			{ titulo: 'Empleado', ancho: '*' },
 			{ titulo: 'Fecha', ancho: 62 },
 			{ titulo: 'Artículo', ancho: '*' },
@@ -116,8 +115,7 @@ export function entregasAPdf(filas: FilaEntrega[], hoy: string) {
 			{ titulo: 'Observaciones', ancho: '*' }
 		],
 		filas: filas.map((f) => [
-			f.legajo,
-			f.nombre,
+			f.empleado,
 			formatearFecha(f.fecha),
 			f.articulo,
 			String(f.cantidad),

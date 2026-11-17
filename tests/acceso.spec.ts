@@ -105,7 +105,7 @@ describe('acceso sin sesión', () => {
 		expect(stock).toContain('Casco;15;1;OK');
 
 		const entregas = await (await entregasCsv(evento(false))).text();
-		expect(entregas).toContain('5;Ana;12/11/2026;Casco;2;');
+		expect(entregas).toContain('Ana;12/11/2026;Casco;2;');
 		expect(entregas.trim().split('\r\n')).toHaveLength(2);
 
 		for (const [exportar, extension] of [[stockXlsx, '.xlsx'], [entregasXlsx, '.xlsx'], [stockPdf, '.pdf'], [entregasPdf, '.pdf']] as const) {
@@ -117,7 +117,7 @@ describe('acceso sin sesión', () => {
 
 	it('las exportaciones respetan la búsqueda y el filtro de la página', async () => {
 		await crearArticulo(db, { nombre: 'Arnés', categoria: null, stock: 0, stockMinimo: 2 });
-		await registrarEntrega(db, { items: [{ articuloId, cantidad: 1 }], fecha: '2026-11-13', empleado: '9 - Beto', observaciones: null });
+		await registrarEntrega(db, { items: [{ articuloId, cantidad: 1 }], fecha: '2026-11-13', empleado: 'Beto', observaciones: null });
 		const con = (consulta: string) => ({ ...evento(false), url: new URL(`http://localhost/${consulta}`) });
 
 		const sinStock = await (await stockCsv(con('?estado=sin-stock'))).text();
@@ -126,7 +126,7 @@ describe('acceso sin sesión', () => {
 		expect(await (await stockCsv(con('?q=arnes'))).text()).not.toContain('Casco');
 
 		const deBeto = await (await entregasCsv(con('?q=beto'))).text();
-		expect(deBeto).toContain('9;Beto;13/11/2026;Casco;1;');
+		expect(deBeto).toContain('Beto;13/11/2026;Casco;1;');
 		expect(deBeto).not.toContain('Ana');
 	});
 });

@@ -29,14 +29,6 @@ export function leerId(form: FormData, campo = 'id'): number {
 	return entero(form, campo, 'Identificador', { min: 1 });
 }
 
-/** Normaliza "  123 -  Juan   Pérez " → "123 - Juan Pérez". */
-export function normalizarEmpleado(valor: string): string | null {
-	const m = valor.trim().match(/^(\S+?)\s*-\s*(.+)$/);
-	if (!m) return null;
-	const nombre = m[2].replace(/\s+/g, ' ').trim();
-	return nombre ? `${m[1]} - ${nombre}` : null;
-}
-
 function leerNombre(form: FormData): string {
 	const nombre = texto(form, 'nombre').replace(/\s+/g, ' ');
 	if (!nombre) throw new ErrorUsuario('Ingresá el nombre del artículo.');
