@@ -36,7 +36,7 @@
 		<input
 			type="search"
 			name="q"
-			placeholder="Buscar por nombre o legajo"
+			placeholder="Buscar por nombre"
 			aria-label="Buscar empleado"
 			bind:value={busqueda}
 		/>
@@ -46,8 +46,7 @@
 	{#each empleadosFiltrados as e (e.empleado)}
 		<details class="empleado">
 			<summary>
-				<span class="legajo">{e.legajo}</span>
-				<strong class="nombre">{e.nombre}</strong>
+				<strong class="nombre">{e.empleado}</strong>
 				<span class="ultima">Última entrega: {formatearFecha(e.ultima)}</span>
 				<span class="totales">
 					{#each e.totales as t (t.articulo)}

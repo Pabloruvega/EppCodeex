@@ -52,7 +52,7 @@ describe('acceso sin sesión', () => {
 		articuloId = (await crearArticulo(db, { nombre: 'Casco', categoria: null, stock: 10, stockMinimo: 1 })).id;
 		await registrarIngreso(db, { articuloId, cantidad: 7 });
 		movimientoId = (
-			await registrarEntrega(db, { items: [{ articuloId, cantidad: 2 }], fecha: '2026-11-12', empleado: '5 - Ana', observaciones: null })
+			await registrarEntrega(db, { items: [{ articuloId, cantidad: 2 }], fecha: '2026-11-12', empleado: 'Ana', observaciones: null })
 		)[0].movimiento.id;
 	});
 
@@ -61,7 +61,7 @@ describe('acceso sin sesión', () => {
 		['editarArticulo', () => ({ id: String(articuloId), nombre: 'Casco', stock: '0', stockMinimo: '0' })],
 		['borrarArticulo', () => ({ id: String(articuloId) })],
 		['ingreso', () => ({ articuloId: String(articuloId), cantidad: '5' })],
-		['entrega', () => ({ articuloId: String(articuloId), cantidad: '1', fecha: '2026-11-12', empleado: '1 - X' })],
+		['entrega', () => ({ articuloId: String(articuloId), cantidad: '1', fecha: '2026-11-12', empleado: 'X' })],
 		['borrarMovimiento', () => ({ id: String(movimientoId) })]
 	];
 
@@ -76,7 +76,7 @@ describe('acceso sin sesión', () => {
 		const data = { ...(await loadStock(evento(false))), ...(await loadEntregas(evento(false))) } as Record<string, unknown>;
 		expect(JSON.stringify(data)).not.toContain('ingreso');
 		// las entregas sí son públicas
-		expect(JSON.stringify(data.empleados)).toContain('5 - Ana');
+		expect(JSON.stringify(data.empleados)).toContain('Ana');
 	});
 
 	it.each([
@@ -156,7 +156,7 @@ describe('acceso con sesión de admin', () => {
 	it('una entrega sin stock suficiente devuelve 400 con el mensaje', async () => {
 		const { id } = await crearArticulo(db, { nombre: 'Antiparras', categoria: null, stock: 1, stockMinimo: 0 });
 		const r = await actions.entrega(
-			evento(true, { articuloId: String(id), cantidad: '2', fecha: '2026-11-12', empleado: '1 - Ana' })
+			evento(true, { articuloId: String(id), cantidad: '2', fecha: '2026-11-12', empleado: 'Ana' })
 		);
 		expect(r).toMatchObject({ status: 400, data: { error: expect.stringMatching(/Stock insuficiente/) } });
 	});
@@ -166,12 +166,12 @@ describe('acceso con sesión de admin', () => {
 		const guantes = await crearArticulo(db, { nombre: 'Guantes', categoria: null, stock: 9, stockMinimo: 0 });
 		const e = evento(true);
 		const body = new FormData();
-		for (const [k, v] of [['empleado', '1 - Ana'], ['fecha', '2026-11-12'], ['articuloId', String(casco.id)], ['cantidad', '1'], ['articuloId', String(guantes.id)], ['cantidad', '3']]) {
+		for (const [k, v] of [['empleado', 'Ana'], ['fecha', '2026-11-12'], ['articuloId', String(casco.id)], ['cantidad', '1'], ['articuloId', String(guantes.id)], ['cantidad', '3']]) {
 			body.append(k, v);
 		}
 		e.request = new Request('http://localhost/', { method: 'POST', body });
 
-		expect(await actions.entrega(e)).toEqual({ mensaje: 'Entrega a 1 - Ana registrada: 1 × "Casco", 3 × "Guantes".' });
+		expect(await actions.entrega(e)).toEqual({ mensaje: 'Entrega a Ana registrada: 1 × "Casco", 3 × "Guantes".' });
 		expect((await db.select().from(articulos)).map((a) => a.stock).sort()).toEqual([3, 6]);
 	});
 });

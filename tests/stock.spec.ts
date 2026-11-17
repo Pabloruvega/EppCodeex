@@ -25,7 +25,7 @@ const nuevo = { nombre: '', categoria: null, stock: 5, stockMinimo: 0 };
 const entrega = (articuloId: number, cantidad: number) => ({
 	items: [{ articuloId, cantidad }],
 	fecha: '2026-11-12',
-	empleado: '123 - Juan Pérez',
+	empleado: 'Juan Pérez',
 	observaciones: null
 });
 
@@ -59,7 +59,7 @@ describe('lógica de stock', () => {
 	it('una entrega descuenta del stock y registra al empleado', async () => {
 		const [{ articulo, movimiento }] = await registrarEntrega(db, entrega(guantes, 3));
 		expect(articulo.stock).toBe(7);
-		expect(movimiento).toMatchObject({ tipo: 'entrega', cantidad: 3, empleado: '123 - Juan Pérez' });
+		expect(movimiento).toMatchObject({ tipo: 'entrega', cantidad: 3, empleado: 'Juan Pérez' });
 	});
 
 	it('se puede entregar exactamente todo el stock', async () => {
@@ -94,7 +94,7 @@ describe('lógica de stock', () => {
 		]);
 		const registrados = await db.select().from(movimientos);
 		expect(registrados).toHaveLength(2);
-		expect(registrados.every((m) => m.tipo === 'entrega' && m.empleado === '123 - Juan Pérez')).toBe(true);
+		expect(registrados.every((m) => m.tipo === 'entrega' && m.empleado === 'Juan Pérez')).toBe(true);
 	});
 
 	it('si falta stock de un artículo no se entrega ninguno', async () => {

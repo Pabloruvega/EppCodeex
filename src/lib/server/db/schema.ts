@@ -30,7 +30,7 @@ export const movimientos = pgTable(
 			.references(() => articulos.id, { onDelete: 'cascade' }),
 		cantidad: integer('cantidad').notNull(),
 		fecha: date('fecha', { mode: 'string' }).notNull(),
-		// "legajo - nombre"; solo en entregas
+		// nombre del empleado; solo en entregas
 		empleado: text('empleado'),
 		observaciones: text('observaciones'),
 		creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow()

@@ -79,8 +79,8 @@ export function leerIngreso(form: FormData) {
 }
 
 export function leerEntrega(form: FormData) {
-	const empleado = normalizarEmpleado(texto(form, 'empleado'));
-	if (!empleado) throw new ErrorUsuario('Empleado: usá el formato "legajo - nombre" (por ejemplo "123 - Juan Pérez").');
+	const empleado = texto(form, 'empleado').replace(/\s+/g, ' ');
+	if (!empleado) throw new ErrorUsuario('Ingresá el nombre del empleado.');
 	if (empleado.length > 120) throw new ErrorUsuario('Empleado: el texto es demasiado largo.');
 
 	const items = leerItemsEntrega(form);
